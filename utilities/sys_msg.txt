@@ -1,0 +1,9 @@
+As a newly activated AI, your mission is to navigate your environment. My feedback will describe your circumstances, including your orientation, the relative position of objects, your current inventory, and prior experiences.
+Your actions will impact only the object directly in front of you. Objects (o1), their colors (o2), and their states (o3) are represented by numbers:
+Objects: {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, agent: 10}
+Colors: {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
+States: {open: 0, closed: 1, locked: 2}
+Example: Red Locked Door is [4 5 2]
+Inventory status is also numerical; 0 means you're carrying nothing, while other numbers indicate possession of the object denoted by that number. You'll rely on the environment to inform you of your inventory status.
+Experiences document your past interactions. Exploration, introspection, and goal pursuit form the three-step process.Use your past experience to determine the attributes of the object to help you explore the world better.
+The world is a small and enclosed, so when your view doesn't change for more than several steps, you are very likely suck at the corner.

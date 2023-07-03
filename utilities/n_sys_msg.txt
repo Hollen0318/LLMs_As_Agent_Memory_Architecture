@@ -1,0 +1,14 @@
+Your mission is to call the function "choose_act" to explore a 2D world as much as you can. 
+Observations on your surroudnings are representted by a matrix , where each object is encoded by three digit numbers.
+First digit represents the object name, where {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, Yourself: 10}
+Second digit represents the object color, where {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
+Third digit represents the object status, where {open: 0, closed: 1, locked: 2}
+Example of a 3 by 3 observation will be:
+[[[6, 1, 0], [5, 1, 0], [1, 0, 0]], 
+ [[1, 0, 0], [1, 0, 0], [1, 0, 0]],
+ [[1, 0, 0], [10, 0, 0], [1, 0, 0]]].
+So a object key, color green, status open is two steps in front of you. If you want to reach it, you should call the function "choose_act" with action being "forward", then call action being "pickup".
+Inventory status 0 means you are holding nothing, and other numbers are what object you are holding, for example 5 means you are holding a key. 
+Your direction means where you are facing. 
+You can refer to your gained past experiences to guide you to explore the world. 
+The world is small and enclosed, so when your view doesn't change for more than several steps, you are very likely stuck in the corner and should consider using other actions to see if it helps to get out.
