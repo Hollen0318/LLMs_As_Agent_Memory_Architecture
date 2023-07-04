@@ -12,6 +12,7 @@ import time
 from PIL import Image
 import json
 import sys
+import pyautogui
 
 # Function to return what GPT returns
 def choose_act(action):
@@ -49,6 +50,7 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
         # Interpret each pixel in the observation
         description = f"This is Environment # {env_id}"
         descriptions = [f"You are facing {direction_dict[dir]}."]
+        descriptions.append(description)
         # We need the front_object to be used for deterimine the inventory list,
         # for example, if we have an pickable object, we need to log it to the inventory list
         front_object = ""
@@ -75,7 +77,7 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
         description = f"Your inventory status is {inv}"
         descriptions.append(description)
         descriptions_e = descriptions.copy()
-        description = f"Your current experience is \n {exp}"
+        description = f"Your current experience is \n{exp}"
         descriptions_e.append(description)
         description = f"Front object is {front_object}"
         descriptions.append(description)
@@ -97,36 +99,28 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
         # The user location in the MiniGrid is always (view//2,view-1) where the x axis
         # points to the right and y axis points to the down direction 
         user_x, user_y = args.view - 1, args.view // 2
+        # Change agent's location into [10,0,0]
+        img[user_x, user_y] = [10,0,0]
         # We denote the direction based on the MiniGrid constant.py
         direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
         # Interpret each pixel in the observation
         description = f"This is Environment # {env_id}"
         descriptions = [f"You are facing {direction_dict[dir]}."]
+        descriptions.append(description)
         # We need the front_object to be used for deterimine the inventory list,
         # for example, if we have an pickable object, we need to log it to the inventory list
         front_object = ""
         description = f"Your observation is\n{img}"
-        descriptions += description
+        descriptions.append(description)
         for x in range(args.view):
             for y in range(args.view):
-                # We load every squares in the image observation matrix with shape x,x,3
-                # print(f"x = {x} y = {y} obs[{x},{y}] = {obs[x,y]} user_y = {user_y} user_x = {user_x}")
-                
-                # We want to skip the unseen parts
-                if img[x,y][0] == 0:
-                    continue
-
-                # We will not record the observation for the agent itself to save the interpretation
-                if y == user_y and x == user_x:
-                    continue
-                
                 # We record the object in front of the agent for future use
                 if y == user_y and x == user_x - 1:
                     front_object = str(img[x,y])
-                    description = f"Front object is {front_object}"
+        description = f"Your inventory status is {inv}"
         descriptions.append(description)
         descriptions_e = descriptions.copy()
-        description = f"Your current experience is \n {exp}"
+        description = f"Your current experience is \n{exp}"
         descriptions_e.append(description)
         description = f"Front object is {front_object}"
         descriptions.append(description)
@@ -155,7 +149,10 @@ def get_env_list():
 # Get the saving path for the current argument setting
 def get_path(args):
     # Get today's date and format it as MM_DD_YYYY
-    env_names = "_".join(args.envs)
+    if args.all:
+        env_names = "ALL"
+    else:
+        env_names = "_".join(args.envs)
     arg_list = ["seed", "gpt", "view", "input", "goal", "static", "temp", "steps", "all", "lim", "rel-des"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
@@ -164,6 +161,8 @@ def get_path(args):
     return full_path
 
 def get_action(args, text):
+    print(f"\n################## Starting Deciding ##################\n")
+    print(f"Prompt Message =\n\n{text}\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop"}
     if args.input:
@@ -207,14 +206,16 @@ def get_action(args, text):
                         "choose_act": choose_act,
                     }
                     fuc_n = rsp_msg["function_call"]["name"]
-                    fuc_c = fuc_l[fuc_n]
-                    fuc_args = json.loads(rsp_msg["function_call"]["arguments"])
                     if fuc_n == "choose_act":
+                        fuc_c = fuc_l[fuc_n]
+                        fuc_args = json.loads(rsp_msg["function_call"]["arguments"])
                         if fuc_args.get("action") in valid:
                             act = fuc_c(
                                 action = fuc_args.get("action")
                             )
-            except:
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
@@ -223,12 +224,14 @@ def get_action(args, text):
     return act_obj_pair[act]
 
 def get_exp(args, text, n_text, act, act_his):
+    if args.log:
+        print(f"\n################## Starting Reflection ##################\n")
     if args.input:
-        usr_msg = f"Old observation is:\n" + text 
+        usr_msg = f"Old observation is:\n\n" + text 
         exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\nthe new observation is\n{n_text}\n{exp_msg}\n"""
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
         if args.log:
-            print(f"{usr_msg}")
+            print(f"Prompt Message = \n\n{usr_msg}")
         exp = input("Write your experience here")
     else:
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
@@ -236,11 +239,11 @@ def get_exp(args, text, n_text, act, act_his):
         if args.goal:
             sys_msg += "You will be prompted a goal in the environment.\n"
         msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = f"Old observation is:\n" + text 
+        usr_msg = f"Old observation is:\n\n" + text 
         exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}, the new observation is\n{n_text}\nYour past actions are {", ".join(act_his)}\n{exp_msg}\n"""
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
         if args.log:
-            print(f"prompt mesage = \n{usr_msg}")
+            print(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
         max_retries = args.max_rty  # maximum number of retries
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
@@ -268,12 +271,12 @@ def cvt_act(inv, act, fro_obj):
     act_obj = act_obj_pair[act]
     l_fro_objs = fro_obj.strip("[]").split()
     l_fro_obj = [int(e) for e in l_fro_objs]
-    if act == "pick up" and inv == 0:
-        if l_fro_obj[0] in [5,6,7]:
-            inv = l_fro_obj[0]
-        elif act == "drop off":
-            if l_fro_obj[0] == 1:
-                inv = 0
+    if act == "pick up" and inv == 0 and l_fro_obj[0] in [5,6,7]:
+        inv = l_fro_obj[0]
+    elif act == "drop off" and l_fro_obj[0] == 1:
+        inv = 0
+    else:
+        inv = inv
     return inv, act_obj
 
 if __name__ == '__main__':
@@ -285,7 +288,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--API-key",
-        default = "./utilities/API_KEY",
+        default = "./utilities/API/API_1",
         type = str,
         help = "the location to load your OpenAI API Key"
     )
@@ -364,8 +367,8 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--rel-des",
-        action = "store_ture",
-       help = "whether to use relative position description or pure array print as observation description" 
+        action = "store_true",
+        help = "whether to use relative position description or pure array print as observation description" 
     )
     parser.add_argument(
         "--rty-dly",
@@ -445,16 +448,14 @@ if __name__ == '__main__':
                     os.rmdir(dir_path)
         else:
             if args.log:                
-                print("Same setting already exist, abort the experiment \n Include the --overwrite to overwrite existing experiment")
+                print(f"Same setting already exist, abort the experiment\nInclude the --overwrite to overwrite existing experiment")
             sys.exit(0)
     # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
     # experience or an evolving experience will be dependant on the arguments. 
     envs_mapping = get_env_list()
     if args.log:
-        print(f"Running experiment run with arguments being = \n{args}")
-    if args.wandb:
-        table = wandb.Table(columns=["id", "name", "img", "obs", "text", "act", "exp"])
-    
+        print(f"\n################## Starting Experiment ##################\n")
+        print(f"Configurations are:\n{args}")
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
         exp = open(args.exp_src).read()
@@ -465,6 +466,9 @@ if __name__ == '__main__':
     env_id = 0
     if args.all:
         args.envs = [str(i) for i in range(61)]
+    if args.log:
+        print(f"\n################## System Message ##################\n")
+        print(f"{open(args.sys_msg).read()}")
     for i in args.envs:
         # For every new environment, the inventory is always 0 (empty)
         inv = 0
@@ -477,6 +481,8 @@ if __name__ == '__main__':
             agent_view_size = args.view,
             screen_size = args.screen
         )
+        if args.wandb:
+            table = wandb.Table(columns=["id", "name", "img", "obs", "text", "act", "exp"])
         act_his = []
         obs, state = env.reset(seed=args.seed)
         for j in range(args.steps):
@@ -484,12 +490,19 @@ if __name__ == '__main__':
             text, text_e, fro_obj = obs_to_description(args, obs, inv, exp, env_id, act_his)
             # get an action in text e.g. forward, pick up
             act = get_action(args, text_e)
+            if args.log:
+                print(f"***************** Gained Action *****************\n")
+                print(f"You have choose to do \"{act}\"")
             # using the action to determine the inventory and MiniGrid action object
             inv, act_obj = cvt_act(inv, act, fro_obj)
-            # make a screenshot
-            img_array = env.render()
-            img = Image.fromarray(img_array)
-            img.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
+            if args.disp:
+                scn = pyautogui.screenshot()
+                scn.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
+            else:
+                # make a screenshot
+                img_array = env.render()
+                img = Image.fromarray(img_array)
+                img.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
             # take the action returned either by api or user
             n_obs, reward, terminated, truncated, _= env.step(act_obj)
             n_text, ntext_e, n_fro_obj = obs_to_description(args, n_obs, inv, exp, env_id, act_his)
@@ -498,15 +511,18 @@ if __name__ == '__main__':
                 continue
             else:
                 exp = get_exp(args, text, n_text, act, act_his)
+                with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
+                    f.write(exp)
             act_his.append(act)
             if args.wandb:
             # log everything to the wandb    
                 table.add_data(act_idx, env_name, wandb.Image(img), obs, text_e, act, exp)
             obs = n_obs
             if args.log:
-                print(f"exp = {exp}")
+                print(f"\n***************** Gained Experience *****************n")
+                print(f"{exp}")
             act_idx += 1
         env_id += 1
-        if args.wandb:
-            wandb.log({"Trajectory Table":table})
         env.close()
+        if args.wandb:
+            wandb.log({f"Trajectory Table #{env_id}":table})

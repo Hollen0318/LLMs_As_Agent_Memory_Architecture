@@ -2,6 +2,7 @@
 Project Repository for LLM As Agent project code
 
 ## Getting Started
+1. Test enviornment 0, print the logging infos, stored in wandb, with system message being ./utilities/n_sys_msg.tx, overwritting the same settings, experience limit being 1000 tokens.
 ```shell
-python start.py --log --temp=0.6 --API-key=./utilities/API_1 --overwrite --envs 1
+python start.py --log --sys-msg ./utilities/n_sys_msg.txt --envs 0 --overwrite --lim 1000
 ```
