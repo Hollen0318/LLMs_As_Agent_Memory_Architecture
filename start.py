@@ -11,6 +11,7 @@ import wandb
 import time
 from PIL import Image
 import json
+import sys
 
 # Function to return what GPT returns
 def choose_act(action):
@@ -35,7 +36,7 @@ def describe_location(diff_x, diff_y):
 
 # Convert the observation into environment description, it takes input of 
 # surroundings, inventory and past experience at the hand
-def obs_to_description(args, obs, inv, exp):
+def obs_to_description(args, obs, inv, exp, env_id, act_his):
     if args.rel_des:
         dir = obs['direction']
         img = obs['image']
@@ -46,7 +47,7 @@ def obs_to_description(args, obs, inv, exp):
         # We denote the direction based on the MiniGrid constant.py
         direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
         # Interpret each pixel in the observation
-        description = ""
+        description = f"This is Environment # {env_id}"
         descriptions = [f"You are facing {direction_dict[dir]}."]
         # We need the front_object to be used for deterimine the inventory list,
         # for example, if we have an pickable object, we need to log it to the inventory list
@@ -73,16 +74,22 @@ def obs_to_description(args, obs, inv, exp):
                 descriptions.append(description)
         description = f"Your inventory status is {inv}"
         descriptions.append(description)
+        descriptions_e = descriptions.copy()
         description = f"Your current experience is \n {exp}"
-        descriptions.append(description)
+        descriptions_e.append(description)
         description = f"Front object is {front_object}"
         descriptions.append(description)
+        descriptions_e.append(description)
+        descriptions_e.append(f"Your past actions are:")
+        description = ", ".join(act_his)
+        descriptions_e.append(description)
         if goal is None:
-            return "\n".join(descriptions), front_object
+            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
         else:
             description = f"Your goal is \n{goal}"
             descriptions.append(description)
-            return "\n".join(descriptions), front_object
+            descriptions_e.append(description)
+            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
     else:
         dir = obs['direction']
         img = obs['image'].transpose(1,0,2)
@@ -93,7 +100,7 @@ def obs_to_description(args, obs, inv, exp):
         # We denote the direction based on the MiniGrid constant.py
         direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
         # Interpret each pixel in the observation
-        description = ""
+        description = f"This is Environment # {env_id}"
         descriptions = [f"You are facing {direction_dict[dir]}."]
         # We need the front_object to be used for deterimine the inventory list,
         # for example, if we have an pickable object, we need to log it to the inventory list
@@ -118,12 +125,22 @@ def obs_to_description(args, obs, inv, exp):
                     front_object = str(img[x,y])
                     description = f"Front object is {front_object}"
         descriptions.append(description)
+        descriptions_e = descriptions.copy()
+        description = f"Your current experience is \n {exp}"
+        descriptions_e.append(description)
+        description = f"Front object is {front_object}"
+        descriptions.append(description)
+        descriptions_e.append(description)
+        descriptions_e.append(f"Your past actions are:")
+        description = ", ".join(act_his)
+        descriptions_e.append(description)
         if goal is None:
-            return "\n".join(descriptions), front_object
+            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
         else:
             description = f"Your goal is \n{goal}"
             descriptions.append(description)
-            return "\n".join(descriptions), front_object
+            descriptions_e.append(description)
+            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_list():
@@ -139,7 +156,7 @@ def get_env_list():
 def get_path(args):
     # Get today's date and format it as MM_DD_YYYY
     env_names = "_".join(args.envs)
-    arg_list = ["seed", "gpt", "view", "input", "goal", "static", "temp", "steps", "all", "lim"]
+    arg_list = ["seed", "gpt", "view", "input", "goal", "static", "temp", "steps", "all", "lim", "rel-des"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path
@@ -166,14 +183,14 @@ def get_action(args, text):
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
         sys_msg = open(args.sys_msg).read()
         if args.goal:
-            sys_msg += "You will be prompted a goal in the environment.\n"
+            sys_msg += "\nYou will be prompted a goal specific to the environment.\n"
         msg = [{"role": "system", "content": sys_msg}]
         fuc_msg = open(args.fuc_msg).read()
         fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
-        usr_msg = text + "/n use function call to make your action"      
+        usr_msg = text + f"\n{fuc_msg}"      
         msg.append({"role": "user", "content": usr_msg})
-        max_retries = 5  # maximum number of retries
-        retry_delay = 1  # wait for 1 second before retrying initially
+        max_retries = args.max_rty  # maximum number of retries
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
     
         for attempt in range(max_retries):
             try:
@@ -197,7 +214,7 @@ def get_action(args, text):
                             act = fuc_c(
                                 action = fuc_args.get("action")
                             )
-            except ServiceUnavailableError:
+            except:
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
@@ -205,7 +222,7 @@ def get_action(args, text):
                     raise  # re-raise the last exception if all retries failed
     return act_obj_pair[act]
 
-def get_exp(args, text, n_text, act):
+def get_exp(args, text, n_text, act, act_his):
     if args.input:
         usr_msg = f"Old observation is:\n" + text 
         exp_msg = open(args.exp_msg).read()
@@ -221,12 +238,12 @@ def get_exp(args, text, n_text, act):
         msg = [{"role": "system", "content": sys_msg}]
         usr_msg = f"Old observation is:\n" + text 
         exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}, the new observation is\n{n_text}\n{exp_msg}\n"""
+        usr_msg += f"""\nYou have choose to do {act}, the new observation is\n{n_text}\nYour past actions are {", ".join(act_his)}\n{exp_msg}\n"""
         if args.log:
-            print(f"prompt mesage = {usr_msg}")
+            print(f"prompt mesage = \n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
-        max_retries = 5  # maximum number of retries
-        retry_delay = 1  # wait for 1 second before retrying initially
+        max_retries = args.max_rty  # maximum number of retries
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         for attempt in range(max_retries):
             try:
                 rsp = openai.ChatCompletion.create(
@@ -236,7 +253,7 @@ def get_exp(args, text, n_text, act):
                     max_tokens = args.lim
                 )
                 exp = rsp["choices"][0]["message"]["content"]
-            except ServiceUnavailableError:
+            except:
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
@@ -329,6 +346,12 @@ if __name__ == '__main__':
         help = "print the logging informations by print()"
     )
     parser.add_argument(
+        "--max-rty",
+        type = int,
+        default = 5,
+        help = "the maximum number of delays in OpenAI API Calling"
+    )
+    parser.add_argument(
         "--overwrite",
         action = "store_true",
         help="overwrite the same experiment setting"
@@ -338,6 +361,17 @@ if __name__ == '__main__':
         type = str,
         help = "the project name for your wandb",
         default = "LLM As Agent"
+    )
+    parser.add_argument(
+        "--rel-des",
+        action = "store_ture",
+       help = "whether to use relative position description or pure array print as observation description" 
+    )
+    parser.add_argument(
+        "--rty-dly",
+        type = int,
+        default = 1,
+        help = "the number of seconds to delay when in OpenAI API Calling"
     )
     parser.add_argument(
         "--screen",
@@ -385,11 +419,6 @@ if __name__ == '__main__':
         action = "store_true",
         help = "whether to use wandb to record experiments"
     )
-    parser.add_argument(
-        "--rel-des",
-        action = "store_ture",
-        
-    )
     args = parser.parse_args()
     save_path = get_path(args)
 
@@ -417,14 +446,14 @@ if __name__ == '__main__':
         else:
             if args.log:                
                 print("Same setting already exist, abort the experiment \n Include the --overwrite to overwrite existing experiment")
-
+            sys.exit(0)
     # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
     # experience or an evolving experience will be dependant on the arguments. 
     envs_mapping = get_env_list()
     if args.log:
         print(f"Running experiment run with arguments being = \n{args}")
     if args.wandb:
-        table = wandb.Table(columns=["img", "obs", "text", "act", "exp"])
+        table = wandb.Table(columns=["id", "name", "img", "obs", "text", "act", "exp"])
     
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
@@ -433,6 +462,7 @@ if __name__ == '__main__':
         exp = ""
     
     act_idx = 0
+    env_id = 0
     if args.all:
         args.envs = [str(i) for i in range(61)]
     for i in args.envs:
@@ -447,33 +477,36 @@ if __name__ == '__main__':
             agent_view_size = args.view,
             screen_size = args.screen
         )
+        act_his = []
         obs, state = env.reset(seed=args.seed)
         for j in range(args.steps):
             # gain the text description and front object index
-            text, fro_obj = obs_to_description(args, obs, inv, exp)
+            text, text_e, fro_obj = obs_to_description(args, obs, inv, exp, env_id, act_his)
             # get an action in text e.g. forward, pick up
-            act = get_action(args, text)
+            act = get_action(args, text_e)
             # using the action to determine the inventory and MiniGrid action object
             inv, act_obj = cvt_act(inv, act, fro_obj)
             # make a screenshot
             img_array = env.render()
             img = Image.fromarray(img_array)
-            img.save(os.path.join(save_path, f"action_{act_idx}.png"))
+            img.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
             # take the action returned either by api or user
             n_obs, reward, terminated, truncated, _= env.step(act_obj)
-            n_text, n_fro_obj = obs_to_description(args, n_obs, inv, exp)
+            n_text, ntext_e, n_fro_obj = obs_to_description(args, n_obs, inv, exp, env_id, act_his)
             # get a new experience
             if args.static:
                 continue
             else:
-                exp = get_exp(args, text, n_text, act)
+                exp = get_exp(args, text, n_text, act, act_his)
+            act_his.append(act)
             if args.wandb:
             # log everything to the wandb    
-                table.add_data(wandb.Image(img), obs, text, act, exp)
+                table.add_data(act_idx, env_name, wandb.Image(img), obs, text_e, act, exp)
             obs = n_obs
             if args.log:
                 print(f"exp = {exp}")
             act_idx += 1
+        env_id += 1
         if args.wandb:
             wandb.log({"Trajectory Table":table})
         env.close()
