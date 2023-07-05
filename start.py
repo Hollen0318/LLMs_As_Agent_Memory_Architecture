@@ -222,13 +222,13 @@ def get_action(args, text):
                     raise  # re-raise the last exception if all retries failed
     return act_obj_pair[act]
 
-def get_exp(args, text, n_text, act, act_his):
+def get_exp(args, text, n_text, act, act_his, p_exp):
     if args.log:
         print(f"\n################## Starting Reflection ##################\n")
     if args.input:
         usr_msg = f"Old observation is:\n\n" + text 
         exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
         exp = input("Write your experience here")
@@ -240,7 +240,7 @@ def get_exp(args, text, n_text, act, act_his):
         msg = [{"role": "system", "content": sys_msg}]
         usr_msg = f"Old observation is:\n\n" + text 
         exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
@@ -509,7 +509,7 @@ if __name__ == '__main__':
             if args.static:
                 continue
             else:
-                exp = get_exp(args, text, n_text, act, act_his)
+                exp = get_exp(args, text, n_text, act, act_his, exp)
                 with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
                     f.write(exp)
             act_his.append(act)
