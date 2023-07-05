@@ -23,6 +23,8 @@ conda activate minigrid
 
 ## Quick Start
 
+0. Paste your OpenAI API Key under the utilities/API/API_1 if you don't want to specify it in the run. 
+
 1. Test enviornment 0, print the logging infos, stored in wandb, with system message being `./utilities/n_sys_msg.txt`, overwritting the same settings, experience limit being 1000 tokens.
 
 ```shell
