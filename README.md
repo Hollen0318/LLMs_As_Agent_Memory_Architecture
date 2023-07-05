@@ -1,10 +1,10 @@
-# LLM_As_Agent
+# LLM As Agent
 
 Project Repository for LLM As Agent project code
 
 ## Introduction
 
-This repository includes algorithm for training a Agent embodied with LLM to explore environments from scratch.
+This repository includes algorithm for training an agent embodied with LLM to explore environments from scratch, adapt during exploration.
 
 ## Getting Started
 
@@ -23,13 +23,13 @@ conda activate minigrid
 
 ## Quick Start
 
-1. Test enviornment 0, print the logging infos, stored in wandb, with system message being ./utilities/n_sys_msg.tx, overwritting the same settings, experience limit being 1000 tokens.
+1. Test enviornment 0, print the logging infos, stored in wandb, with system message being `./utilities/n_sys_msg.txt`, overwritting the same settings, experience limit being 1000 tokens.
 
 ```shell
 python start.py --log --sys-msg ./utilities/n_sys_msg.txt --envs 0 --overwrite --lim 1000 --wandb
 ```
 
-2. Test all environments, print the logging infos, stored in wandb, with system message being ./utilities/n_sys_msg.tx, overwritting the same settings, experience limit being 1000 tokens.
+2. Test all environments, print the logging infos, stored in wandb, with system message being `./utilities/n_sys_msg.txt`, overwritting the same settings, experience limit being 1000 tokens.
 
 ```shell
 python start.py --log --sys-msg ./utilities/n_sys_msg.txt --all --overwrite --lim 1000 --overwrite --wandb

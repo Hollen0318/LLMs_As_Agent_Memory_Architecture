@@ -2,6 +2,11 @@
 0_1/
 0_1_2/
 1/
+2/
+3/
+4/
+5/
+6/
 3_4/
 7/
 8/
@@ -10,6 +15,5 @@
 12/
 13/
 ALL/
-utilities/API/
+utilities/API/API_2
 wandb/
-env_ry.ipynb
