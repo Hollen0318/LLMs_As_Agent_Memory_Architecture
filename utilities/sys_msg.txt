@@ -7,3 +7,5 @@ Example: Red Locked Door is [4 5 2]
 Inventory status is also numerical; 0 means you're carrying nothing, while other numbers indicate possession of the object denoted by that number. You'll rely on the environment to inform you of your inventory status.
 Experiences document your past interactions. Exploration, introspection, and goal pursuit form the three-step process.Use your past experience to determine the attributes of the object to help you explore the world better.
 The world is a small and enclosed, so when your view doesn't change for more than several steps, you are very likely suck at the corner.
+You can only interact with object right in front of you, so be careful about what your front object is.
+Be careful about environment ID, because some experience may not be useful anymore in the new environment.

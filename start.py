@@ -6,7 +6,6 @@ from Minigrid.minigrid.minigrid_env import MiniGridEnv
 import os
 from datetime import datetime
 import argparse
-from openai.error import ServiceUnavailableError
 import wandb
 import time
 from PIL import Image
@@ -164,7 +163,7 @@ def get_action(args, text):
     print(f"\n################## Starting Deciding ##################\n")
     print(f"Prompt Message =\n\n{text}\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
-                    "3": "forward", "4": "pick up", "5": "drop"}
+                    "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
         if args.log:
             print(f"{open(args.sys_msg).read()}")
