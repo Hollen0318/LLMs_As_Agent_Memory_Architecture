@@ -153,7 +153,7 @@ def get_path(args):
         env_names = "ALL"
     else:
         env_names = "_".join(args.envs)
-    arg_list = ["seed", "gpt", "view", "input", "goal", "static", "temp", "steps", "all", "lim", "rel-des"]
+    arg_list = ["seed", "gpt", "view", "input", "goal", "static", "temp", "steps", "all", "lim", "rel-des", "mry"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path
@@ -233,7 +233,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
         usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
-        exp = input("Write your experience here")
+        c_exp = input("Write your experience here")
     else:
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
         sys_msg = open(args.sys_msg).read()
@@ -242,10 +242,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
         msg = [{"role": "system", "content": sys_msg}]
         usr_msg = f"Old observation is:\n\n" + text 
         exp_msg = open(args.exp_msg).read()
-        if args.mry:
-            usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n"""
-        else:
-            usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
@@ -259,14 +256,43 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
                     temperature = args.temp, 
                     max_tokens = args.lim
                 )
-                exp = rsp["choices"][0]["message"]["content"]
-            except:
+                n_exp = rsp["choices"][0]["message"]["content"]
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
                 else:
                     raise  # re-raise the last exception if all retries failed
-    return exp
+        print(f"\n################## Starting Reviewing ##################\n")
+        msg = [{"role": "system", "content": sys_msg}]
+        usr_msg = f"Old experience is:\n\n" + p_exp
+        rvw_msg = open(args.rvw_msg).read()
+        usr_msg += f"New experience is:\n\n{n_exp}\n\n{rvw_msg}"
+        if args.log:
+            print(f"Prompt Message = \n\n{usr_msg}")
+        msg.append({"role": "user", "content": usr_msg})
+        max_retries = args.max_rty  # maximum number of retries
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+        for attempt in range(max_retries):
+            try:
+                rsp = openai.ChatCompletion.create(
+                    model=gpt_map[args.gpt],
+                    messages=msg,
+                    temperature = args.temp, 
+                    max_tokens = args.lim
+                )
+                c_exp = rsp["choices"][0]["message"]["content"]
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}")
+                if attempt < max_retries - 1:  # no need to wait on the last attempt
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # double the delay each time we retry
+                else:
+                    raise  # re-raise the last exception if all retries failed
+    return c_exp
 
 # Conver the text act into MiniGrid action object, update the inventory as well
 def cvt_act(inv, act, fro_obj):
@@ -380,6 +406,12 @@ if __name__ == '__main__':
         help = "whether to use relative position description or pure array print as observation description" 
     )
     parser.add_argument(
+        "--rvw-msg",
+        type = str,
+        default = "./utilities/rvw_msg.txt",
+        help = "the review message location to read"
+    )
+    parser.add_argument(
         "--rty-dly",
         type = int,
         default = 1,
@@ -417,7 +449,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--temp",
         type = float,
-        default = 0.0,
+        default = 0.7,
         help = "the temprature used by the OpenAI API"
     )
     parser.add_argument(
