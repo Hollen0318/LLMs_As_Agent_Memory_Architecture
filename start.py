@@ -443,7 +443,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--steps",
         type = int,
-        default = 20,
+        default =35,
         help = "the maximum numbers of steps each environment will be taken"
     )
     parser.add_argument(
