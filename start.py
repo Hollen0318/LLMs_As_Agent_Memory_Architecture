@@ -481,7 +481,7 @@ if __name__ == '__main__':
             screen_size = args.screen
         )
         if args.wandb:
-            table = wandb.Table(columns=["name", "img", "obs", "text", "act", "exp"])
+            table = wandb.Table(columns=["img", "obs", "text", "act", "exp"])
         act_his = []
         obs, state = env.reset(seed=args.seed)
         for j in range(args.steps):
@@ -509,19 +509,20 @@ if __name__ == '__main__':
             if args.static:
                 continue
             else:
-                exp = get_exp(args, text, n_text, act, act_his, exp)
+                n_exp = get_exp(args, text, n_text, act, act_his, exp)
                 with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
-                    f.write(exp)
+                    f.write(n_exp)
             act_his.append(act)
             if args.wandb:
             # log everything to the wandb    
-                table.add_data(env_name, wandb.Image(img), obs, text_e, act, exp)
+                table.add_data(wandb.Image(img), obs, text_e, act, n_exp)
             obs = n_obs
             if args.log:
                 print(f"\n***************** Gained Experience *****************n")
-                print(f"{exp}")
+                print(f"{n_exp}")
             act_idx += 1
+            exp = n_exp
         env_id += 1
         env.close()
         if args.wandb:
-            wandb.log({f"Trajectory Table #{env_id}":table})
+            wandb.log({f"Trajectory Table #{env_id} \"{env_name}\"":table})
