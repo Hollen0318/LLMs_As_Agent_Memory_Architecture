@@ -312,6 +312,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
