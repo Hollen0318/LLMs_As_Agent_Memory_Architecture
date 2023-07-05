@@ -160,8 +160,9 @@ def get_path(args):
     return full_path
 
 def get_action(args, text):
-    print(f"\n################## Starting Deciding ##################\n")
-    print(f"Prompt Message =\n\n{text}\n")
+    if args.log:
+        print(f"\n################## Starting Deciding ##################\n")
+        print(f"Prompt Message =\n\n{text}\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:

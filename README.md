@@ -17,6 +17,8 @@ You need to have `git` and `conda` installed on your machine. To install these, 
 ### Installing dependencies
 
 ```shell
+git clone https://github.com/general-robotics-duke/LLM_As_Agent.git
+cd LLMS_AS_AGENT
 conda env create -f environment.yml
 conda activate minigrid
 ```
@@ -25,17 +27,20 @@ conda activate minigrid
 
 0. Paste your OpenAI API Key under the utilities/API/API_1 if you don't want to specify it in the run. 
 
-1. Test enviornment 0, print the logging infos, stored in wandb, with system message being `./utilities/n_sys_msg.txt`, overwritting the same settings, experience limit being 1000 tokens.
+1. Test the environment with `--API-key` stored under `./utilities/API/API_1`,`--sys-msg` under `./utilities/n_sys_msg.txt` with all other settings in default. (`--overwrite` will replace the same experiment configs experiment setting)
 
 ```shell
-python start.py --log --sys-msg ./utilities/n_sys_msg.txt --envs 0 --overwrite --lim 1000 --wandb --view 5 --steps 50
+python start.py --envs 0 --API-key ./utilities/API/API_1 --log --overwrite --sys-msg ./utilities/n_sys_msg.txt --wandb
 ```
 
-2. Test all environments, print the logging infos, stored in wandb, with system message being `./utilities/n_sys_msg.txt`, overwritting the same settings, experience limit being 1000 tokens.
-
+2. Test the environment with `--API-key` stored under `./utilities/API/API_1`,`--sys-msg` under `./utilities/n_sys_msg.txt`, number of steps as 50, exploring all the environment and limiting the experience tokens limit to 1000 with all other settings in default. 
 ```shell
-python start.py --log --sys-msg ./utilities/n_sys_msg.txt --all --overwrite --lim 1000 --overwrite --wandb --steps 50 --view 5
+python start.py --all --API-key utilities/API/API_1 --lim 1000 --log --overwrite --steps 50 --sys-msg ./utilities/n_sys_msg.txt --view 5 --wandb 
 ```
+
+The screenshots, observation, experience and actions being taken will be uploaded to the wandb as well as saved under environmentID/configs. 
+For example:
+`ALL\all_True_goal_False_gpt_3_input_False_lim_1000_seed_23_static_False_steps_50_temp_0.0_view_5`
 
 ## Command Line Arguments
 
