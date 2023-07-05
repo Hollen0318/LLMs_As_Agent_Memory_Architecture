@@ -481,7 +481,7 @@ if __name__ == '__main__':
             screen_size = args.screen
         )
         if args.wandb:
-            table = wandb.Table(columns=["id", "name", "img", "obs", "text", "act", "exp"])
+            table = wandb.Table(columns=["name", "img", "obs", "text", "act", "exp"])
         act_his = []
         obs, state = env.reset(seed=args.seed)
         for j in range(args.steps):
@@ -515,7 +515,7 @@ if __name__ == '__main__':
             act_his.append(act)
             if args.wandb:
             # log everything to the wandb    
-                table.add_data(act_idx, env_name, wandb.Image(img), obs, text_e, act, exp)
+                table.add_data(env_name, wandb.Image(img), obs, text_e, act, exp)
             obs = n_obs
             if args.log:
                 print(f"\n***************** Gained Experience *****************n")
