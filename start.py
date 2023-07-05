@@ -216,7 +216,7 @@ def get_action(args, text):
                             )
             except Exception as e:
                 if args.log:
-                    print(f"Caught an error: {e}")
+                    print(f"Caught an error: {e}\n")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
@@ -259,7 +259,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
                 n_exp = rsp["choices"][0]["message"]["content"]
             except Exception as e:
                 if args.log:
-                    print(f"Caught an error: {e}")
+                    print(f"Caught an error: {e}\n")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
@@ -289,7 +289,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
                 c_exp = rsp["choices"][0]["message"]["content"]
             except Exception as e:
                 if args.log:
-                    print(f"Caught an error: {e}")
+                    print(f"Caught an error: {e}\n")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
