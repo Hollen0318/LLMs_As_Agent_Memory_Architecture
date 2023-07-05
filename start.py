@@ -17,6 +17,14 @@ import pyautogui
 def choose_act(action):
     return str(action)
 
+# Function to write the logging infos in to log save file
+def write_log(text):
+    # Open the file in append mode
+    save_path = get_path(args)
+    with open(os.path.join(save_path, f"log.txt"), "a") as file:
+        # Write the strings to the file
+        file.write(text)
+
 # Describe the relative location based on the diff_x and diff_y, where the positve values
 # means at the front or on the right by default
 def describe_location(diff_x, diff_y):
@@ -164,6 +172,8 @@ def get_action(args, text):
     if args.log:
         print(f"\n################## Starting Deciding ##################\n")
         print(f"Prompt Message =\n\n{text}\n")
+    write_log(f"\n################## Starting Deciding ##################\n")
+    write_log(f"Prompt Message =\n\n{text}\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
@@ -171,6 +181,9 @@ def get_action(args, text):
             print(f"{open(args.sys_msg).read()}")
             print(f"{text}")
             print(f"{open(args.fuc_msg).read()}\n")
+        write_log(f"{open(args.sys_msg).read()}")
+        write_log(f"{text}")
+        write_log(f"{open(args.fuc_msg).read()}\n")
         valid = [str(i) for i in range(6)]
         while True:
             act = input("") 
@@ -217,6 +230,7 @@ def get_action(args, text):
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
@@ -227,12 +241,14 @@ def get_action(args, text):
 def get_exp(args, text, n_text, act, act_his, p_exp):
     if args.log:
         print(f"\n################## Starting Reflection ##################\n")
+    write_log(f"\n################## Starting Reflection ##################\n")
     if args.input:
         usr_msg = f"Old observation is:\n\n" + text 
         exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n"""
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n{rvw_msg}Limit words to be less than {str(args.lim)}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
         c_exp = input("Write your experience here")
     else:
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
@@ -245,6 +261,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
         usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
         max_retries = args.max_rty  # maximum number of retries
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
@@ -260,6 +277,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
                 if attempt < max_retries - 1:  # no need to wait on the last attempt
                     time.sleep(retry_delay)
                     retry_delay *= 2  # double the delay each time we retry
@@ -269,12 +287,16 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
             print(f"\n***************** Gained Experience *****************\n")
             print(f"{n_exp}")
             print(f"\n################## Starting Reviewing ##################\n")
+        write_log(f"\n***************** Gained Experience *****************\n")
+        write_log(f"{n_exp}")
+        write_log(f"\n################## Starting Reviewing ##################\n")
         msg = [{"role": "system", "content": sys_msg}]
         usr_msg = f"Old experience is:\n\n" + p_exp
         rvw_msg = open(args.rvw_msg).read()
-        usr_msg += f"""\n\nNew experience is:\n\n{n_exp}\n\nYour past actions are {", ".join(act_his)}\n\n{rvw_msg}"""
+        usr_msg += f"""\n\nNew experience is:\n\n{n_exp}\n\nYour past actions are {", ".join(act_his)}\n\n{rvw_msg}\nLimit words to be less than {str(args.lim)}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
         max_retries = args.max_rty  # maximum number of retries
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
@@ -298,6 +320,8 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
     if args.log:
         print(f"\n***************** Summarized Experience *****************\n")
         print(f"{c_exp}")
+    write_log(f"\n***************** Summarized Experience *****************\n")
+    write_log(f"{c_exp}")
     return c_exp
 
 # Conver the text act into MiniGrid action object, update the inventory as well
@@ -376,7 +400,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--lim",
         type = int,
-        default = 1000,
+        default = 500,
         help = "the words limit to the experience"
     )
     parser.add_argument(
@@ -443,7 +467,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--steps",
         type = int,
-        default =35,
+        default = 20,
         help = "the maximum numbers of steps each environment will be taken"
     )
     parser.add_argument(
@@ -494,15 +518,19 @@ if __name__ == '__main__':
                     dir_path = os.path.join(root, dir)
                     os.rmdir(dir_path)
         else:
-            if args.log:                
-                print(f"Same setting already exist, abort the experiment\nInclude the --overwrite to overwrite existing experiment")
+            if args.log:
+                txt = f"Same setting already exist, abort the experiment\nInclude the --overwrite to overwrite existing experiment"                
+                print(txt)
+            write_log(txt)
             sys.exit(0)
     # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
     # experience or an evolving experience will be dependant on the arguments. 
     envs_mapping = get_env_list()
     if args.log:
-        print(f"\n################## Starting Experiment ##################\n")
+        print(f"################## Starting Experiment ##################\n")
         print(f"Configurations are:\n{args}")
+    write_log(f"################## Starting Experiment ##################\n")
+    write_log(f"Configurations are:\n{args}")
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
         exp = open(args.exp_src).read()
@@ -516,12 +544,15 @@ if __name__ == '__main__':
     if args.log:
         print(f"\n################## System Message ##################\n")
         print(f"{open(args.sys_msg).read()}")
+    write_log(f"\n################## System Message ##################\n")
+    write_log(f"{open(args.sys_msg).read()}")
     for i in args.envs:
         # For every new environment, the inventory is always 0 (empty)
         inv = 0
         env_name = envs_mapping[int(i)]
         if args.log:
-            print(f"Loading environment = {env_name}")    
+            print(f"Loading environment = {env_name}")
+        write_log(f"Loading environment = {env_name}")
         env: MiniGridEnv = gym.make(
             id = env_name,
             render_mode = "human" if args.disp else "rgb_array",
@@ -540,6 +571,8 @@ if __name__ == '__main__':
             if args.log:
                 print(f"***************** Gained Action *****************\n")
                 print(f"You have choose to do \"{act}\"")
+            write_log(f"***************** Gained Action *****************\n")
+            write_log(f"You have choose to do \"{act}\"")
             # using the action to determine the inventory and MiniGrid action object
             inv, act_obj = cvt_act(inv, act, fro_obj)
             if args.disp:
@@ -570,4 +603,4 @@ if __name__ == '__main__':
         env_id += 1
         env.close()
         if args.wandb:
-            wandb.log({f"Trajectory Table #{env_id} \"{env_name}\"":table})
+            wandb.log({f"Trajectory Table #{env_id}":table})
