@@ -145,8 +145,8 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
             return "\n".join(descriptions), "\n".join(descriptions_e), front_object
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
-def get_env_list():
-    file_name = "./utilities/envs_mapping.txt"
+def get_env_list(args):
+    file_name = args.envs_map
     mappings = []
     with open(file_name, "r") as file:
         for line in file:
@@ -355,6 +355,18 @@ if __name__ == '__main__':
         default = ["1"]
     )
     parser.add_argument(
+        "--envs-map",
+        type = str,
+        help = "the environment ID and environment name mapping",
+        default = "./utilities/envs_mapping.txt"
+    )
+    parser.add_argument(
+        "--envs-size",
+        type = str,
+        help = "the environment ID and environment name mapping",
+        default = "./utilities/envs_size.txt"
+    )
+    parser.add_argument(
         "--exp-msg",
         type = str,
         default = "./utilities/exp_msg.txt",
@@ -510,7 +522,7 @@ if __name__ == '__main__':
             sys.exit(0)
     # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
     # experience or an evolving experience will be dependant on the arguments. 
-    envs_mapping = get_env_list()
+    envs_mapping = get_env_list(args)
     if args.log:
         print(f"################## Starting Experiment ##################\n")
         print(f"Configurations are:\n{args}")
