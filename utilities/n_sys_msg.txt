@@ -1,5 +1,5 @@
 Your mission is to call the function "choose_act" to explore a 2D world as much as you can. 
-Observations on your surroudnings are representted by a matrix , where each object is encoded by three digit numbers.
+Observations on your surroudnings are representted by a square size matrix (size could be 3, 5, 7), where each object is encoded by three digit numbers.
 First digit represents the object name, where {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, Yourself: 10}
 Second digit represents the object color, where {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
 Third digit represents the object status, where {open: 0, closed: 1, locked: 2}
