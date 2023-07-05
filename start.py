@@ -76,14 +76,15 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
         description = f"Your inventory status is {inv}"
         descriptions.append(description)
         descriptions_e = descriptions.copy()
-        description = f"Your current experience is \n{exp}"
-        descriptions_e.append(description)
         description = f"Front object is {front_object}"
         descriptions.append(description)
         descriptions_e.append(description)
         descriptions_e.append(f"Your past actions are:")
         description = ", ".join(act_his)
         descriptions_e.append(description)
+        description = f"Your current experience is \n{exp}"
+        descriptions_e.append(description)
+
         if goal is None:
             return "\n".join(descriptions), "\n".join(descriptions_e), front_object
         else:
@@ -119,13 +120,13 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
         description = f"Your inventory status is {inv}"
         descriptions.append(description)
         descriptions_e = descriptions.copy()
-        description = f"Your current experience is \n{exp}"
-        descriptions_e.append(description)
         description = f"Front object is {front_object}"
         descriptions.append(description)
         descriptions_e.append(description)
         descriptions_e.append(f"Your past actions are:")
         description = ", ".join(act_his)
+        descriptions_e.append(description)
+        description = f"Your current experience is \n{exp}"
         descriptions_e.append(description)
         if goal is None:
             return "\n".join(descriptions), "\n".join(descriptions_e), front_object
