@@ -265,11 +265,14 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
                     retry_delay *= 2  # double the delay each time we retry
                 else:
                     raise  # re-raise the last exception if all retries failed
-        print(f"\n################## Starting Reviewing ##################\n")
+        if args.log:
+            print(f"\n***************** Gained Experience *****************\n")
+            print(f"{n_exp}")
+            print(f"\n################## Starting Reviewing ##################\n")
         msg = [{"role": "system", "content": sys_msg}]
         usr_msg = f"Old experience is:\n\n" + p_exp
         rvw_msg = open(args.rvw_msg).read()
-        usr_msg += f"New experience is:\n\n{n_exp}\n\n{rvw_msg}"
+        usr_msg += f"""\n\nNew experience is:\n\n{n_exp}\n\nYour past actions are {", ".join(act_his)}\n\n{rvw_msg}"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
@@ -292,6 +295,9 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
                     retry_delay *= 2  # double the delay each time we retry
                 else:
                     raise  # re-raise the last exception if all retries failed
+    if args.log:
+        print(f"\n***************** Summarized Experience *****************\n")
+        print(f"{c_exp}")
     return c_exp
 
 # Conver the text act into MiniGrid action object, update the inventory as well
@@ -551,17 +557,14 @@ if __name__ == '__main__':
             if args.static:
                 continue
             else:
+                act_his.append(act)
                 n_exp = get_exp(args, text, n_text, act, act_his, exp)
                 with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
                     f.write(n_exp)
-            act_his.append(act)
             if args.wandb:
             # log everything to the wandb    
                 table.add_data(wandb.Image(img), obs, text_e, act, n_exp)
             obs = n_obs
-            if args.log:
-                print(f"\n***************** Gained Experience *****************n")
-                print(f"{n_exp}")
             act_idx += 1
             exp = n_exp
         env_id += 1
