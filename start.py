@@ -376,7 +376,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--lim",
         type = int,
-        default = 300,
+        default = 1000,
         help = "the words limit to the experience"
     )
     parser.add_argument(
