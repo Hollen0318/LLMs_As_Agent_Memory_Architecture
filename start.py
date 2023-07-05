@@ -202,10 +202,8 @@ def get_action(args, text):
         fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
         usr_msg = text + f"\n{fuc_msg}"      
         msg.append({"role": "user", "content": usr_msg})
-        max_retries = args.max_rty  # maximum number of retries
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-    
-        for attempt in range(max_retries):
+        while True:
             try:
                 rsp = openai.ChatCompletion.create(
                 model=gpt_map[args.gpt],
@@ -227,15 +225,13 @@ def get_action(args, text):
                             act = fuc_c(
                                 action = fuc_args.get("action")
                             )
+                break
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
                 write_log(f"Caught an error: {e}\n")
-                if attempt < max_retries - 1:  # no need to wait on the last attempt
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # double the delay each time we retry
-                else:
-                    raise  # re-raise the last exception if all retries failed
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
     return act_obj_pair[act]
 
 def get_exp(args, text, n_text, act, act_his, p_exp):
@@ -263,9 +259,8 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
             print(f"Prompt Message = \n\n{usr_msg}")
         write_log(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
-        max_retries = args.max_rty  # maximum number of retries
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        for attempt in range(max_retries):
+        while True:
             try:
                 rsp = openai.ChatCompletion.create(
                     model=gpt_map[args.gpt],
@@ -274,15 +269,13 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
                     max_tokens = args.lim
                 )
                 n_exp = rsp["choices"][0]["message"]["content"]
+                break
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
                 write_log(f"Caught an error: {e}\n")
-                if attempt < max_retries - 1:  # no need to wait on the last attempt
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # double the delay each time we retry
-                else:
-                    raise  # re-raise the last exception if all retries failed
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
         if args.log:
             print(f"\n***************** Gained Experience *****************\n")
             print(f"{n_exp}")
@@ -298,9 +291,8 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
             print(f"Prompt Message = \n\n{usr_msg}")
         write_log(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
-        max_retries = args.max_rty  # maximum number of retries
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        for attempt in range(max_retries):
+        while True:
             try:
                 rsp = openai.ChatCompletion.create(
                     model=gpt_map[args.gpt],
@@ -309,15 +301,13 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
                     max_tokens = args.lim
                 )
                 c_exp = rsp["choices"][0]["message"]["content"]
+                break
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
                 write_log(f"Caught an error: {e}\n")
-                if attempt < max_retries - 1:  # no need to wait on the last attempt
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # double the delay each time we retry
-                else:
-                    raise  # re-raise the last exception if all retries failed
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
     if args.log:
         print(f"\n***************** Summarized Experience *****************\n")
         print(f"{c_exp}")
@@ -408,12 +398,6 @@ if __name__ == '__main__':
         "--log",
         action = "store_true",
         help = "print the logging informations by print()"
-    )
-    parser.add_argument(
-        "--max-rty",
-        type = int,
-        default = 10,
-        help = "the maximum number of delays in OpenAI API Calling"
     )
     parser.add_argument(
         "--mry",
