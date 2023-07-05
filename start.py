@@ -241,7 +241,10 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
         msg = [{"role": "system", "content": sys_msg}]
         usr_msg = f"Old observation is:\n\n" + text 
         exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n"""
+        if args.mry:
+            usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n"""
+        else:
+            usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
         msg.append({"role": "user", "content": usr_msg})
@@ -353,6 +356,11 @@ if __name__ == '__main__':
         type = int,
         default = 5,
         help = "the maximum number of delays in OpenAI API Calling"
+    )
+    parser.add_argument(
+        "--mry",
+        action = "store_true",
+        help = "whether the agent will have memory about past experiences"
     )
     parser.add_argument(
         "--overwrite",
