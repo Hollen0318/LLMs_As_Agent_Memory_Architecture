@@ -411,7 +411,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--max-rty",
         type = int,
-        default = 5,
+        default = 10,
         help = "the maximum number of delays in OpenAI API Calling"
     )
     parser.add_argument(
@@ -444,7 +444,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--rty-dly",
         type = int,
-        default = 1,
+        default = 5,
         help = "the number of seconds to delay when in OpenAI API Calling"
     )
     parser.add_argument(
