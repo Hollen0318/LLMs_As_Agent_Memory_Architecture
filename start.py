@@ -12,8 +12,130 @@ from PIL import Image
 import json
 import sys
 import pyautogui
+import numpy as np
 
-# Function to return what GPT returns
+def update_view(args, img, env_rec, env_id, x, y):
+    if x >= 0 and x <= env_rec[env_id].shape[1] and y >= 0 and y <= env_rec[env_id].shape[2]:
+        if img[x,y][0] != 0:
+            env_rec[env_id][0][x,y] = 1
+    return env_rec
+
+# Function to get the env, dimension, height, width 4-dimensional matrix, used for calculating exploration rate
+def get_rec(args):
+    # read data from txt file
+    with open(args.env_maps, 'r') as f:
+        lines = f.readlines()
+
+    # parse the data and create matrices
+    env_rec = {}
+    obj_rec = {}
+    for line in lines:
+        env_id, h, w = map(int, line.strip().split(','))
+        env_rec[env_id] = np.zeros((3, h, w))
+        obj_rec[env_id] = np.array([[0 for i in range(10)] for j in range(2)])
+
+    return env_rec, obj_rec
+
+# Function to update the records regarding exploration, it needs env_id to determine the environment, 
+# act to determine the interaction type, pos to determine the global position and obs to determine
+# the target of exploration
+def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj):
+    # 1. Updating the env record
+    img = obs['image'].transpose(1,0,2)
+
+    # Update the env view record:
+    if obs['direction'] == 0:
+        for x in range(pos[0] - 1, pos[0] + 1):
+            for y in range(pos[1], pos[1] + 2):
+                env_rec = update_view(args, img, env_rec, env_id, x, y)
+    elif obs['direction'] == 1:
+        for x in range(pos[0], pos[0] + 2):
+            for y in range(pos[1] - 1, pos[1] + 1):
+                env_rec = update_view(args, img, env_rec, env_id, x, y)
+    elif obs['direction'] == 2:
+        for x in range(pos[0] - 1, pos[0] + 1):
+            for y in range(pos[1] - 2, pos[1]):
+                env_rec = update_view(args, img, env_rec, env_id, x, y)
+    elif obs['direction'] == 3:
+        for x in range(pos[0] - 2, pos[0]):
+            for y in range(pos[1] - 1, pos[1] + 1):
+                env_rec = update_view(args, img, env_rec, env_id, x, y)
+
+    # Update the env interact record:
+    if act == "toggle" or "pick up" or "drop off":
+        # direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+        if obs['direction'] == 0:
+            fro_pos = (pos[0], pos[1] + 1)
+        elif obs['direction'] == 1:
+            fro_pos = (pos[0] + 1, pos[1])
+        elif obs['direction'] == 2:
+            fro_pos = (pos[0], pos[1] - 1)
+        elif obs['direction'] == 3:
+            fro_pos = (pos[0] - 1, pos[1])
+        env_rec[env_id][1][fro_pos] = 1
+
+    # Update the env step record:
+    env_rec[env_id][2][pos] = 1
+
+    # 2. Update the obj record
+
+    # Update the obj view record
+    for x in range(img.shape[0]):
+        for y in range(img.shape[1]):
+            obj_rec[env_id][0][img[x,y][0]] = 1
+
+    # Update the obj interact record
+    if act == "toggle" or "pick up" or "drop off":
+        obj_rec[env_id][1][int(fro_obj[1:-1].split()[0])] = 1
+
+    # 3. Update the agent's position
+    pos = fro_pos
+    
+    if args.log:
+        print(f"A. Environment record\n1. View:\n{str(env_rec[env_id][0])}\n2. Interact:\n{str(env_rec[env_id][1])}\n3. Step:\n{str(env_rec[env_id][2])}")
+        print(f"B. Object record\n1. View:\n{str(obj_rec[env_id][0])}\n2. Interact:\n{str(obj_rec[env_id][1])}")
+        print(f"Global position is {pos}")
+    write_log(f"A. Environment record\n1. View:\n{str(env_rec[env_id][0])}\n2. Interact:\n{str(env_rec[env_id][1])}\n3. Step:\n{str(env_rec[env_id][2])}")
+    write_log(f"B. Object record\n1. View:\n{str(obj_rec[env_id][0])}\n2. Interact:\n{str(obj_rec[env_id][1])}")
+    write_log(f"Global position is {pos}")
+    return pos, env_rec, obj_rec
+
+# Function to return six matrices measuring the exploration ratio (environment for current env_id), 
+# they are two:
+# A. Environment Ratio
+#   1. view:      how much agent has seen versus whole environment
+#   2. intr:      how much agent has toggle, pick up, drop off versus all environment
+#   3. step:      how much agent has stepped into versus whole environment
+
+# B. Object Ratio
+#   1. view:      how much agent has seen versus whole objects list
+#   2. intr:      how much agent has toggle, pick up, drop off versus all objects list
+def get_ratios(args, env_id, env_rec, obj_rec):
+    env_view_r = np.sum(env_rec[env_id][0]) / env_rec[env_id][0].size * 100
+    env_intr_r = np.sum(env_rec[env_id][1]) / env_rec[env_id][1].size * 100
+    env_step_r = np.sum(env_rec[env_id][2]) / env_rec[env_id][2].size * 100
+    obj_view_r = np.sum(obj_rec[env_id][0]) / obj_rec[env_id][0].size * 100
+    obj_intr_r = np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100
+    if args.log:
+        print(f"env_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}")
+    write_log(f"env_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}")
+    return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r
+
+# Function to get re-spawn position 
+def get_pos_m(args):
+    # read data from txt file
+    with open(args.env_pos, 'r') as f:
+        lines = f.readlines()
+
+    # parse the data and create matrices
+    pos_m = {}
+    for line in lines:
+        env_id, x, y = map(int, line.strip().split(','))
+        pos_m[env_id] = (x, y)
+
+    return pos_m
+
+# Function to return what GPT returns in sring format
 def choose_act(action):
     return str(action)
 
@@ -145,14 +267,14 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
             return "\n".join(descriptions), "\n".join(descriptions_e), front_object
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
-def get_env_list(args):
-    file_name = args.envs_map
-    mappings = []
+def get_env_id_mappings(args):
+    file_name = args.env_id_maps
+    id_mappings = []
     with open(file_name, "r") as file:
         for line in file:
             _, env_name = line.strip().split(", ")
-            mappings.append(env_name)
-    return mappings
+            id_mappings.append(env_name)
+    return id_mappings
 
 # Get the saving path for the current argument setting
 def get_path(args):
@@ -355,16 +477,22 @@ if __name__ == '__main__':
         default = ["1"]
     )
     parser.add_argument(
-        "--envs-map",
+        "--envs-id-maps",
         type = str,
         help = "the environment ID and environment name mapping",
-        default = "./utilities/envs_mapping.txt"
+        default = "./utilities/env_id_maps.txt"
     )
     parser.add_argument(
-        "--envs-size",
+        "--env-maps",
         type = str,
         help = "the environment ID and environment name mapping",
-        default = "./utilities/envs_size.txt"
+        default = "./utilities/env_maps.txt"
+    )
+    parser.add_argument(
+        "--env-pos",
+        type = str,
+        help = "the spawn position of the agent in each map",
+        default = "./utilities/env_pos.txt"
     )
     parser.add_argument(
         "--exp-msg",
@@ -502,7 +630,7 @@ if __name__ == '__main__':
             config = vars(args)
         )
 
-    # Create or delte the save directory depending on the arguments
+    # Create or delete the save directory depending on the arguments
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     else:
@@ -520,9 +648,10 @@ if __name__ == '__main__':
                 print(txt)
             write_log(txt)
             sys.exit(0)
+            
     # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
     # experience or an evolving experience will be dependant on the arguments. 
-    envs_mapping = get_env_list(args)
+    envs_id_mapping = get_env_id_mappings(args)
     if args.log:
         print(f"################## Starting Experiment ##################\n")
         print(f"Configurations are:\n{args}")
@@ -535,7 +664,6 @@ if __name__ == '__main__':
         exp = ""
     
     act_idx = 0
-    env_id = 0
     if args.all:
         args.envs = [str(i) for i in range(61)]
     if args.log:
@@ -543,10 +671,16 @@ if __name__ == '__main__':
         print(f"{open(args.sys_msg).read()}")
     write_log(f"\n################## System Message ##################\n")
     write_log(f"{open(args.sys_msg).read()}")
+
+    # Load the environment size txt, and create a env_id, channel, height, width 4-dimensional 
+    # env_rec to record the exploration with environment, and channel, height, width 3-dimensional 
+    # list to track the object exploration record. three channels are view, toggle, step
+    env_rec, obj_rec = get_rec(args)
+    pos_m = get_pos_m(args)
     for i in args.envs:
         # For every new environment, the inventory is always 0 (empty)
         inv = 0
-        env_name = envs_mapping[int(i)]
+        env_name = envs_id_mapping[int(i)]
         if args.log:
             print(f"Loading environment = {env_name}")
         write_log(f"Loading environment = {env_name}")
@@ -557,14 +691,19 @@ if __name__ == '__main__':
             screen_size = args.screen
         )
         if args.wandb:
-            table = wandb.Table(columns=["img", "obs", "text", "act", "exp"])
+            table = wandb.Table(columns=["img", "obs", "text", "act", "exp", "env_view", "env_intr", "env_step", "obj_view", "obj_intr", "pos"])
         act_his = []
         obs, state = env.reset(seed=args.seed)
+        pos = pos_m(i)
         for j in range(args.steps):
             # gain the text description and front object index
-            text, text_e, fro_obj = obs_to_description(args, obs, inv, exp, env_id, act_his)
+            text, text_e, fro_obj = obs_to_description(args, obs, inv, exp, i, act_his)
             # get an action in text e.g. forward, pick up
             act = get_action(args, text_e)
+            # update the records based on env_id, act, pos, obs, fro_obj
+            pos, env_rec, obj_rec = update_rec(args, env_rec, obj_rec, i, act, pos, obs, fro_obj)
+            # get five ratios measuring the exploration ratio
+            env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r = get_ratios(args, i, env_rec, obj_rec)
             if args.log:
                 print(f"***************** Gained Action *****************\n")
                 print(f"You have choose to do \"{act}\"")
@@ -581,8 +720,8 @@ if __name__ == '__main__':
                 img = Image.fromarray(img_array)
                 img.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
             # take the action returned either by api or user
-            n_obs, reward, terminated, truncated, _= env.step(act_obj)
-            n_text, ntext_e, n_fro_obj = obs_to_description(args, n_obs, inv, exp, env_id, act_his)
+            n_obs, reward, terminated, truncated, _ = env.step(act_obj)
+            n_text, ntext_e, n_fro_obj = obs_to_description(args, n_obs, inv, exp, i, act_his)
             # get a new experience
             if args.static:
                 continue
@@ -593,11 +732,10 @@ if __name__ == '__main__':
                     f.write(n_exp)
             if args.wandb:
             # log everything to the wandb    
-                table.add_data(wandb.Image(img), obs, text_e, act, n_exp)
+                table.add_data(wandb.Image(img), obs, text_e, act, n_exp, env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, pos)
             obs = n_obs
             act_idx += 1
             exp = n_exp
-        env_id += 1
         env.close()
         if args.wandb:
-            wandb.log({f"Trajectory Table #{env_id}":table})
+            wandb.log({f"Trajectory Table Environment #{i}":table})
