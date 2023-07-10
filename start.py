@@ -14,9 +14,12 @@ import sys
 import pyautogui
 import numpy as np
 
-def update_view(args, img, env_rec, env_id, x, y):
-    if x >= 0 and x <= env_rec[env_id].shape[1] and y >= 0 and y <= env_rec[env_id].shape[2]:
-        if img[x,y][0] != 0:
+def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
+    if x >= 0 and x <= env_rec[env_id][0].shape[0] and y >= 0 and y <= env_rec[env_id][0].shape[1]:
+        if args.log:
+            print(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
+        write_log(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
+        if img_rel[rel_x,rel_y][0] != 0:
             env_rec[env_id][0][x,y] = 1
     return env_rec
 
@@ -32,7 +35,7 @@ def get_rec(args):
     for line in lines:
         env_id, h, w = map(int, line.strip().split(','))
         env_rec[env_id] = np.zeros((3, h, w))
-        obj_rec[env_id] = np.array([[0 for i in range(10)] for j in range(2)])
+        obj_rec[env_id] = np.array([[0 for i in range(11)] for j in range(2)])
 
     return env_rec, obj_rec
 
@@ -42,36 +45,61 @@ def get_rec(args):
 def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj):
     # 1. Updating the env record
     img = obs['image'].transpose(1,0,2)
-
+    if args.log:
+        print(f"\n################## Starting Updating ##################\n")
+    write_log(f"\n################## Starting Updating ##################\n")
     # Update the env view record:
+    # These are the indexes to record the position in img
+    rel_x = 0
+    rel_y = 0
     if obs['direction'] == 0:
-        for x in range(pos[0] - 1, pos[0] + 1):
-            for y in range(pos[1], pos[1] + 2):
-                env_rec = update_view(args, img, env_rec, env_id, x, y)
+        img_rel = np.rot90(img, k = 1, axes = (0, 1))
+        for x in range(pos[0] - args.view // 2, pos[0] + args.view // 2 + 1):
+            for y in range(pos[1], pos[1] + args.view):
+                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                rel_y += 1
+            rel_y = 0
+            rel_x += 1
+        rel_x = 0
     elif obs['direction'] == 1:
-        for x in range(pos[0], pos[0] + 2):
-            for y in range(pos[1] - 1, pos[1] + 1):
-                env_rec = update_view(args, img, env_rec, env_id, x, y)
+        img_rel = np.rot90(img, k = 2, axes = (0, 1))
+        for x in range(pos[0], pos[0] + args.view):
+            for y in range(pos[1] - args.view // 2, pos[1] + args.view // 2 + 1):
+                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                rel_y += 1
+            rel_y = 0
+            rel_x += 1
+        rel_x = 0
     elif obs['direction'] == 2:
-        for x in range(pos[0] - 1, pos[0] + 1):
-            for y in range(pos[1] - 2, pos[1]):
-                env_rec = update_view(args, img, env_rec, env_id, x, y)
+        img_rel = np.rot90(img, k = 3, axes = (0, 1))
+        for x in range(pos[0] - args.view // 2, pos[0] + args.view // 2 + 1):
+            for y in range(pos[1] - args.view + 1, pos[1] + 1):
+                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                rel_y += 1
+            rel_y = 0
+            rel_x += 1
+        rel_x = 0
     elif obs['direction'] == 3:
-        for x in range(pos[0] - 2, pos[0]):
-            for y in range(pos[1] - 1, pos[1] + 1):
-                env_rec = update_view(args, img, env_rec, env_id, x, y)
-
+        img_rel = img.copy()
+        for x in range(pos[0] - args.view + 1, pos[0] + 1):
+            for y in range(pos[1] - args.view // 2, pos[1] + args.view // 2 + 1):
+                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                rel_y += 1
+            rel_y = 0
+            rel_x += 1
+        rel_x = 0
     # Update the env interact record:
-    if act == "toggle" or "pick up" or "drop off":
-        # direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-        if obs['direction'] == 0:
-            fro_pos = (pos[0], pos[1] + 1)
-        elif obs['direction'] == 1:
-            fro_pos = (pos[0] + 1, pos[1])
-        elif obs['direction'] == 2:
-            fro_pos = (pos[0], pos[1] - 1)
-        elif obs['direction'] == 3:
-            fro_pos = (pos[0] - 1, pos[1])
+    # direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+    if obs['direction'] == 0:
+        fro_pos = (pos[0], pos[1] + 1)
+    elif obs['direction'] == 1:
+        fro_pos = (pos[0] + 1, pos[1])
+    elif obs['direction'] == 2:
+        fro_pos = (pos[0], pos[1] - 1)
+    elif obs['direction'] == 3:
+        fro_pos = (pos[0] - 1, pos[1])
+
+    if act == "toggle" or act == "pick up" or act == "drop off":
         env_rec[env_id][1][fro_pos] = 1
 
     # Update the env step record:
@@ -85,19 +113,20 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj):
             obj_rec[env_id][0][img[x,y][0]] = 1
 
     # Update the obj interact record
-    if act == "toggle" or "pick up" or "drop off":
+    if act == "toggle" or act == "pick up" or act == "drop off":
         obj_rec[env_id][1][int(fro_obj[1:-1].split()[0])] = 1
 
-    # 3. Update the agent's position
-    pos = fro_pos
+    # 3. Update the agent's position if action is forward
+    if act == "forward":
+        pos = fro_pos
     
     if args.log:
         print(f"A. Environment record\n1. View:\n{str(env_rec[env_id][0])}\n2. Interact:\n{str(env_rec[env_id][1])}\n3. Step:\n{str(env_rec[env_id][2])}")
         print(f"B. Object record\n1. View:\n{str(obj_rec[env_id][0])}\n2. Interact:\n{str(obj_rec[env_id][1])}")
         print(f"Global position is {pos}")
     write_log(f"A. Environment record\n1. View:\n{str(env_rec[env_id][0])}\n2. Interact:\n{str(env_rec[env_id][1])}\n3. Step:\n{str(env_rec[env_id][2])}")
-    write_log(f"B. Object record\n1. View:\n{str(obj_rec[env_id][0])}\n2. Interact:\n{str(obj_rec[env_id][1])}")
-    write_log(f"Global position is {pos}")
+    write_log(f"\nB. Object record\n1. View:\n{str(obj_rec[env_id][0])}\n2. Interact:\n{str(obj_rec[env_id][1])}")
+    write_log(f"\nGlobal position is {pos}\n")
     return pos, env_rec, obj_rec
 
 # Function to return six matrices measuring the exploration ratio (environment for current env_id), 
@@ -111,14 +140,16 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj):
 #   1. view:      how much agent has seen versus whole objects list
 #   2. intr:      how much agent has toggle, pick up, drop off versus all objects list
 def get_ratios(args, env_id, env_rec, obj_rec):
-    env_view_r = np.sum(env_rec[env_id][0]) / env_rec[env_id][0].size * 100
-    env_intr_r = np.sum(env_rec[env_id][1]) / env_rec[env_id][1].size * 100
-    env_step_r = np.sum(env_rec[env_id][2]) / env_rec[env_id][2].size * 100
-    obj_view_r = np.sum(obj_rec[env_id][0]) / obj_rec[env_id][0].size * 100
-    obj_intr_r = np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100
+    env_view_r = "{:.3f}%".format(np.sum(env_rec[env_id][0]) / env_rec[env_id][0].size * 100)
+    env_intr_r = "{:.3f}%".format(np.sum(env_rec[env_id][1]) / env_rec[env_id][1].size * 100)
+    env_step_r = "{:.3f}%".format(np.sum(env_rec[env_id][2]) / env_rec[env_id][2].size * 100)
+    obj_view_r = "{:.3f}%".format(np.sum(obj_rec[env_id][0]) / obj_rec[env_id][0].size * 100)
+    obj_intr_r = "{:.3f}%".format(np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100)
     if args.log:
-        print(f"env_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}")
-    write_log(f"env_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}")
+        print(f"\n***************** Records *****************\n")
+        print(f"\nFive ratios are:\nenv_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}\n")
+    write_log(f"\n***************** Records *****************\n")
+    write_log(f"\nFive ratios are:\nenv_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}\n")
     return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r
 
 # Function to get re-spawn position 
@@ -283,7 +314,7 @@ def get_path(args):
         env_names = "ALL"
     else:
         env_names = "_".join(args.envs)
-    arg_list = ["seed", "gpt", "view", "input", "goal", "static", "temp", "steps", "all", "lim", "rel-des", "mry"]
+    arg_list = ["seed", "gpt", "view", "input", "goal", "static", "temp", "steps", "all", "lim", "rel-des"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path
@@ -477,7 +508,7 @@ if __name__ == '__main__':
         default = ["1"]
     )
     parser.add_argument(
-        "--envs-id-maps",
+        "--env-id-maps",
         type = str,
         help = "the environment ID and environment name mapping",
         default = "./utilities/env_id_maps.txt"
@@ -538,11 +569,6 @@ if __name__ == '__main__':
         "--log",
         action = "store_true",
         help = "print the logging informations by print()"
-    )
-    parser.add_argument(
-        "--mry",
-        action = "store_true",
-        help = "whether the agent will have memory about past experiences"
     )
     parser.add_argument(
         "--overwrite",
@@ -618,6 +644,12 @@ if __name__ == '__main__':
         action = "store_true",
         help = "whether to use wandb to record experiments"
     )
+    parser.add_argument(
+        "--refresh",
+        type = int,
+        default = 30,
+        help = "for every x runs, refresh the action history"
+    )
     args = parser.parse_args()
     save_path = get_path(args)
 
@@ -679,6 +711,7 @@ if __name__ == '__main__':
     pos_m = get_pos_m(args)
     for i in args.envs:
         # For every new environment, the inventory is always 0 (empty)
+        # The i is strying environment ID, e.g. "1"
         inv = 0
         env_name = envs_id_mapping[int(i)]
         if args.log:
@@ -691,19 +724,21 @@ if __name__ == '__main__':
             screen_size = args.screen
         )
         if args.wandb:
-            table = wandb.Table(columns=["img", "obs", "text", "act", "exp", "env_view", "env_intr", "env_step", "obj_view", "obj_intr", "pos"])
+            scn_table = wandb.Table(columns=["img", "obs", "text", "act", "exp"])
+            # rec_table = wandb.Table(columns=["env_view", "env_intr", "env_step", "act", "obj_view", "obj_intr", "pos", "env_view_r", "env_intr_r", "env_step_r", "obj_view_r", "obj_intr_r"])
         act_his = []
         obs, state = env.reset(seed=args.seed)
-        pos = pos_m(i)
+        pos = pos_m[int(i)]
         for j in range(args.steps):
+            # We refresh the action history every args.refresh run to avoid too large action space
+            if j % args.refresh == 0:
+                act_his = []
             # gain the text description and front object index
             text, text_e, fro_obj = obs_to_description(args, obs, inv, exp, i, act_his)
             # get an action in text e.g. forward, pick up
             act = get_action(args, text_e)
-            # update the records based on env_id, act, pos, obs, fro_obj
-            pos, env_rec, obj_rec = update_rec(args, env_rec, obj_rec, i, act, pos, obs, fro_obj)
             # get five ratios measuring the exploration ratio
-            env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r = get_ratios(args, i, env_rec, obj_rec)
+            env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r = get_ratios(args, int(i), env_rec, obj_rec)
             if args.log:
                 print(f"***************** Gained Action *****************\n")
                 print(f"You have choose to do \"{act}\"")
@@ -732,10 +767,14 @@ if __name__ == '__main__':
                     f.write(n_exp)
             if args.wandb:
             # log everything to the wandb    
-                table.add_data(wandb.Image(img), obs, text_e, act, n_exp, env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, pos)
+                scn_table.add_data(wandb.Image(img), obs, text_e, act, n_exp)
+                # rec_table.add_data(str(env_rec[int(i)][0]), str(env_rec[int(i)][1]), str(env_rec[int(i)][2]), act, str(obj_rec[int(i)][0]), str(obj_rec[int(i)][1]), str(pos), env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r)
+            # update the records based on env_id, act, pos, obs, fro_obj
+            pos, env_rec, obj_rec = update_rec(args, env_rec, obj_rec, int(i), act, pos, obs, fro_obj)
             obs = n_obs
             act_idx += 1
             exp = n_exp
         env.close()
         if args.wandb:
-            wandb.log({f"Trajectory Table Environment #{i}":table})
+            # wandb.log({f"ScreenShot Table Environment #{i}":scn_table, f"Record Table Environment #{i}":rec_table})
+            wandb.log({f"ScreenShot Table Environment #{i}":scn_table})
