@@ -147,7 +147,7 @@ def get_ratios(args, env_id, env_rec, obj_rec):
     obj_intr_r = "{:.3f}%".format(np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100)
     if args.log:
         print(f"\n***************** Records *****************\n")
-        print(f"\nFive ratios are:\nenv_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}\n")
+        print(f"Five ratios are:\nenv_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}\n")
     write_log(f"\n***************** Records *****************\n")
     write_log(f"\nFive ratios are:\nenv_view_r = {env_view_r}; env_intr_r = {env_intr_r}; env_step_r = {env_step_r}\nobj_view_r = {obj_view_r}; obj_intr_r = {obj_intr_r}\n")
     return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r
