@@ -14,6 +14,10 @@ import sys
 import pyautogui
 import numpy as np
 
+# Function to return what GPT returns in sring format
+def choose_act(action):
+    return str(action)
+
 # Get the saving path for the current argument setting
 def get_path(args):
     # Test if the model is getting directions from input
