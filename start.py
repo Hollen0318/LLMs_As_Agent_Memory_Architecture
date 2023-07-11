@@ -835,14 +835,14 @@ if __name__ == '__main__':
                 if args.wandb:
 
                 # log everything to the wandb    
-                    scn_table.add_data(wandb.Image(img), str(obs), text_e, pos, act, n_exp, c_exp)
+                    scn_table.add_data(wandb.Image(img), str(obs), text_e, str(pos), act, n_exp, c_exp)
                     rec_table.add_data(str(env_rec[int(i)][0]), str(env_rec[int(i)][1]), str(env_rec[int(i)][2]), str(pos), act, str(obj_rec[int(i)][0]), str(obj_rec[int(i)][1]))
                     metrics = {
-                        "env/view_ratio": env_view_r,
-                        "env/intr_ratio": env_intr_r,
-                        "env/step_ratio": env_step_r,
-                        "obj/view_ratio": obj_view_r,
-                        "obj/intr_ratio": obj_intr_r
+                        "env_view_ratio": env_view_r,
+                        "env_intr_ratio": env_intr_r,
+                        "env_step_ratio": env_step_r,
+                        "obj_view_ratio": obj_view_r,
+                        "obj_intr_ratio": obj_intr_r
                     }
 
                     # Log the metrics
