@@ -54,7 +54,7 @@ def get_env_id_mapping(args):
 # Function to get the env, dimension, height, width 4-dimensional matrix, used for calculating exploration rate
 def get_rec(args):
     # read data from txt file
-    with open(args.env_maps, 'r') as f:
+    with open(args.env_sizes, 'r') as f:
         lines = f.readlines()
 
     # parse the data and create matrices
@@ -199,6 +199,8 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
             descriptions.append(description)
             descriptions_e.append(description)
             return "\n".join(descriptions), "\n".join(descriptions_e), front_object
+
+
 
 # Function called by the OpenAI API to choose an action
 def get_action(args, text):
@@ -859,7 +861,7 @@ if __name__ == '__main__':
 
         # Log datas to the wandb
         if args.wandb:
-            wandb.log({f"Screenshot Table for Environment #{i}": scn_table})
-            wandb.log({f"Record Table for Environment #{i}": rec_table})
+            wandb.log({f"Table/Screenshot for Environment #{i}": scn_table})
+            wandb.log({f"Table/Record for Environment #{i}": rec_table})
             
     wandb.finish()
