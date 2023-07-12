@@ -303,6 +303,8 @@ def get_rec(args):
     return env_rec, obj_rec
 
 def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
+    n_env_rec = env_rec.copy()
+    n_obj_rec = obj_rec.copy()
     # 1. Updating the env record
     img = obs['image'].transpose(1,0,2)
     if args.log:
@@ -316,7 +318,7 @@ def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
         img_rel = np.rot90(img, k = 1, axes = (0, 1))
         for x in range(pos[0] - args.view // 2, pos[0] + args.view // 2 + 1):
             for y in range(pos[1], pos[1] + args.view):
-                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
                 rel_y += 1
             rel_y = 0
             rel_x += 1
@@ -325,7 +327,7 @@ def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
         img_rel = np.rot90(img, k = 2, axes = (0, 1))
         for x in range(pos[0], pos[0] + args.view):
             for y in range(pos[1] - args.view // 2, pos[1] + args.view // 2 + 1):
-                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
                 rel_y += 1
             rel_y = 0
             rel_x += 1
@@ -334,7 +336,7 @@ def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
         img_rel = np.rot90(img, k = 3, axes = (0, 1))
         for x in range(pos[0] - args.view // 2, pos[0] + args.view // 2 + 1):
             for y in range(pos[1] - args.view + 1, pos[1] + 1):
-                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
                 rel_y += 1
             rel_y = 0
             rel_x += 1
@@ -343,23 +345,23 @@ def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
         img_rel = img.copy()
         for x in range(pos[0] - args.view + 1, pos[0] + 1):
             for y in range(pos[1] - args.view // 2, pos[1] + args.view // 2 + 1):
-                env_rec = update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y)
+                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
                 rel_y += 1
             rel_y = 0
             rel_x += 1
         rel_x = 0
 
     # Update the env step record:
-    env_rec[env_id][2][pos] = 1
+    n_env_rec[env_id][2][pos] = 1
 
     # 2. Update the obj record
 
     # Update the obj view record
     for x in range(img.shape[0]):
         for y in range(img.shape[1]):
-            obj_rec[env_id][0][img[x,y][0]] = 1
+            n_obj_rec[env_id][0][img[x,y][0]] = 1
 
-    return env_rec, obj_rec
+    return n_env_rec, n_obj_rec
 
 # Function to update the view based on the observation
 def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
@@ -383,27 +385,30 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
         fro_pos = (pos[0], pos[1] - 1)
     elif obs['direction'] == 3:
         fro_pos = (pos[0] - 1, pos[1])
-
+    n_env_rec = env_rec.copy()
+    n_obj_rec = obj_rec.copy()
     if act == "toggle" or act == "pick up" or act == "drop off":
-        env_rec[env_id][1][fro_pos] = 1
+        n_env_rec[env_id][1][fro_pos] = 1
 
     # Update the obj interact record
     if act == "toggle" or act == "pick up" or act == "drop off":
-        obj_rec[env_id][1][fro_obj_l[0]] = 1
+        n_obj_rec[env_id][1][fro_obj_l[0]] = 1
 
     # 3. Update the agent's position if action is forward and front is empty space, opened door
     if act == "forward":
         # Update position if the front is door and the status is opened
         if fro_obj_l[0] == 4 and fro_obj_l[2] == 0:
-            pos = fro_pos
+            n_pos = fro_pos
         # Update position if the front is empty or front is goal
         elif fro_obj_l[0] == 1 or fro_obj_l[0] == 8:
-            pos = fro_pos
+            n_pos = fro_pos
         # Else use old position
         else:
-            pos = pos
+            n_pos = pos
+    else:
+        n_pos = pos
 
-    return pos, env_rec, obj_rec
+    return n_pos, n_env_rec, n_obj_rec
 
 # Function to write into the act_temp.txt to hint an action
 def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp, fro_obj_l):
@@ -825,9 +830,9 @@ if __name__ == '__main__':
                 n_fro_obj_s, n_fro_obj_l = get_fro_obj(args, n_obs)
 
                 # We want the old observation and new observation to generate experience
-                n_env_rec, n_obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, n_obs, pos)
                 n_pos, n_env_rec, n_obj_rec = update_rec(args, env_rec, obj_rec, int(n_env_id), act, pos, n_obs, fro_obj_l)
-                
+                n_env_rec, n_obj_rec = link_rec_obs(args, int(n_env_id), n_env_rec, n_obj_rec, n_obs, n_pos)
+
                 # write into the reflect template to obtain a reflection hint message
                 reflect_hint = write_refl_temp(args, env_rec[o_env_id][0], pos, obs, inv, 
                                                o_env_id, act, fro_obj_s, 
@@ -871,10 +876,10 @@ if __name__ == '__main__':
                 
                 # Print the records and write them to the log files
                 if args.log:
-                    print(f"***************** Records *****************\n")
-                    print(report_text)
-                write_log(f"***************** Records *****************\n")
-                write_log(report_text)
+                    print(f"\n***************** Records *****************\n")
+                    print(f"{report_text}\n")
+                write_log(f"\n***************** Records *****************\n")
+                write_log(f"{report_text}\n")
                 
                 # Update the observation into the new observation to be used by later deciding
                 obs = n_obs
@@ -888,6 +893,9 @@ if __name__ == '__main__':
 
                 # Update the experience into the combined experience to be used by later deciding
                 exp = c_exp
+
+                # Update the inv to be the n_inv
+                inv = n_inv
 
                 # Update the act history to the n_act_his
                 act_his = n_act_his.copy()
