@@ -110,6 +110,6 @@ Observations will be composed of following items:
     5 1 0 [Key Green Open]
 
     Interpretation:
-    There is object that's Key Green Open in front of you, if your inventory status is 0, you can pick it up.  
+    There is object that's Key Green Open in front of you, if your inventory status is 0, you can pick it up by calling "choose_act" with parameter being "pick up".  
 
-Remember all these are just for references, your real observation will be provided to you later with similar format
+Remember all these introductions are just for your references, your real observation will be provided to you later with similar format

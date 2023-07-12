@@ -132,7 +132,7 @@ def get_env_id_mapping(args):
     return id_mappings
 
 # Getting the experience based on two text description and past actions 
-def get_exp(args, reflect_hint, p_exp):
+def get_exp(args, reflect_hint, p_exp, act_his):
     if args.log:
         print(f"\n################## Starting Reflection ##################\n")
     write_log(f"\n################## Starting Reflection ##################\n")
@@ -302,20 +302,7 @@ def get_rec(args):
 
     return env_rec, obj_rec
 
-# Function to update the view based on the observation
-def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
-    if x >= 0 and x <= env_rec[env_id][0].shape[0] and y >= 0 and y <= env_rec[env_id][0].shape[1]:
-        if args.log:
-            print(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
-        write_log(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
-        if img_rel[rel_x,rel_y][0] != 0:
-            env_rec[env_id][0][x,y] = 1
-    return env_rec
-
-# Function to update the records regarding exploration, it needs env_id to determine the environment, 
-# act to determine the interaction type, pos to determine the global position and obs to determine
-# the target of exploration
-def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
+def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
     # 1. Updating the env record
     img = obs['image'].transpose(1,0,2)
     if args.log:
@@ -361,8 +348,33 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
             rel_y = 0
             rel_x += 1
         rel_x = 0
-    # Update the env interact record:
-    # direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+
+    # Update the env step record:
+    env_rec[env_id][2][pos] = 1
+
+    # 2. Update the obj record
+
+    # Update the obj view record
+    for x in range(img.shape[0]):
+        for y in range(img.shape[1]):
+            obj_rec[env_id][0][img[x,y][0]] = 1
+
+    return env_rec, obj_rec
+
+# Function to update the view based on the observation
+def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
+    if x >= 0 and x <= env_rec[env_id][0].shape[0] and y >= 0 and y <= env_rec[env_id][0].shape[1]:
+        if args.log:
+            print(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
+        write_log(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
+        if img_rel[rel_x,rel_y][0] != 0:
+            env_rec[env_id][0][x,y] = 1
+    return env_rec
+
+# Function to update the records regarding exploration, it needs env_id to determine the environment, 
+# act to determine the interaction type, pos to determine the global position and obs to determine
+# the target of exploration
+def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
     if obs['direction'] == 0:
         fro_pos = (pos[0], pos[1] + 1)
     elif obs['direction'] == 1:
@@ -374,16 +386,6 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
 
     if act == "toggle" or act == "pick up" or act == "drop off":
         env_rec[env_id][1][fro_pos] = 1
-
-    # Update the env step record:
-    env_rec[env_id][2][pos] = 1
-
-    # 2. Update the obj record
-
-    # Update the obj view record
-    for x in range(img.shape[0]):
-        for y in range(img.shape[1]):
-            obj_rec[env_id][0][img[x,y][0]] = 1
 
     # Update the obj interact record
     if act == "toggle" or act == "pick up" or act == "drop off":
@@ -447,13 +449,15 @@ def write_refl_temp(args, o_world_map, o_pos, o_obs, o_inv, o_env_id,
     n_dir = n_obs['direction']
     n_dir_s = dir_dic[n_dir]
 
+    n_act_his_s = ", ".join(n_act_his)
     
     with open(args.refl_temp, 'r') as file:
         temp = file.read()
 
     refl_temp_s = temp.format(str(o_world_map), str(o_pos), o_dir_s, str(o_img), str(o_inv), 
                              str(o_env_id), act, o_fro_obj_s, str(n_world_map), str(n_pos), 
-                             n_dir_s, str(n_img), str(n_inv), str(n_env_id), n_fro_obj_s, n_act_his, str(args.lim))
+                             n_dir_s, str(n_img), str(n_inv), str(n_env_id), n_fro_obj_s, 
+                             n_act_his_s, str(args.lim))
     
     return refl_temp_s
 
@@ -476,7 +480,7 @@ def write_sum_temp(args, o_exp, n_exp, act_his):
 
     with open(args.sum_temp, 'r') as file:
         temp = file.read()
-
+        
     act_his_s = ", ".join(act_his)
 
     refl_temp_s = temp.format(o_exp, n_exp, act_his_s, str(args.lim))
@@ -590,7 +594,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--rpt-temp",
-        default = "./utilities/rpt_tempt.txt",
+        default = "./utilities/rpt_temp.txt",
         type = str,
         help = "the location to load your exploration report template format"
     )
@@ -756,9 +760,12 @@ if __name__ == '__main__':
 
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
-        
+
         # Get the respawn position for seed = 23 only
         pos = pos_m[int(i)]
+
+        # Link the obs to the record table
+        env_rec, obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, obs, pos)
 
         # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
@@ -771,16 +778,13 @@ if __name__ == '__main__':
                 act_his = act_his[1:]
 
             # gain the fro_obj
-            fro_obj_s, fro_obj_l = get_fro_obj(obs)
+            fro_obj_s, fro_obj_l = get_fro_obj(args, obs)
 
             # write into the act template to obtain a action hint message
             act_hint = write_act_temp(args, env_rec[int(n_env_id)][0], pos, obs, inv, int(n_env_id), act_his, exp, fro_obj_l)
 
             # get an action in text e.g. forward, pick up
             act = get_action(args, act_hint)
-
-            # update the env & obj record matrix 
-            n_pos, n_env_rec, n_obj_rec = update_rec(args, env_rec, obj_rec, int(n_env_id), act, pos, fro_obj_l)
 
             if args.log:
                 print(f"***************** Gained Action *****************\n")
@@ -815,11 +819,15 @@ if __name__ == '__main__':
 
             else:
                 # get the new act_his list
-                n_act_his = act_his.copy().append(act)
-
+                n_act_his = act_his.copy()
+                n_act_his.append(act)
                 # get the new fro_obj
                 n_fro_obj_s, n_fro_obj_l = get_fro_obj(args, n_obs)
 
+                # We want the old observation and new observation to generate experience
+                n_env_rec, n_obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, n_obs, pos)
+                n_pos, n_env_rec, n_obj_rec = update_rec(args, env_rec, obj_rec, int(n_env_id), act, pos, n_obs, fro_obj_l)
+                
                 # write into the reflect template to obtain a reflection hint message
                 reflect_hint = write_refl_temp(args, env_rec[o_env_id][0], pos, obs, inv, 
                                                o_env_id, act, fro_obj_s, 
@@ -833,15 +841,18 @@ if __name__ == '__main__':
                 else:
                     n_exp, p_exp, c_exp = get_exp(args, reflect_hint, exp, n_act_his)
                     with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
-                        f.write(f"New experience = \n{n_exp}\n")
-                        f.write(f"Past experience = \n{p_exp}\n")
-                        f.write(f"Summarized experiene = \n{c_exp}\n")
+                        f.write(f"New experience:\n\n{n_exp}\n")
+                        f.write(f"\nPast experience:\n\n{p_exp}\n")
+                        f.write(f"Summarized experiene:\n\n{c_exp}\n")
 
                 if args.wandb:
 
                 # log everything to the wandb    
                     scn_table.add_data(wandb.Image(img), str(obs), act_hint, str(pos), act, n_exp, c_exp)
-                    rec_table.add_data(str(env_rec[n_env_id][0]), str(env_rec[int(n_env_id)][1]), str(env_rec[int(n_env_id)][2]), str(pos), act, str(obj_rec[int(i)][0]), str(obj_rec[int(i)][1]))
+                    dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+                    rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
+                                       str(env_rec[int(n_env_id)][2]), str(pos), dir_dic[obs['direction']],
+                                       act, str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
                     metrics = {
                         "env_view_ratio": env_view_r,
                         "env_intr_ratio": env_intr_r,
@@ -854,9 +865,11 @@ if __name__ == '__main__':
                     wandb.log(metrics)
 
                 # Print the report by writing into the file rpt_temp.txt
-                report_text = write_rpt_temp(args, env_rec[n_env_id][0], env_rec[n_env_id][1], env_rec[n_env_id][2], 
-                                             obj_rec[n_env_id][0], obj_rec[n_env_id][1], pos, 
+                report_text = write_rpt_temp(args, env_rec[int(n_env_id)][0], env_rec[int(n_env_id)][1], env_rec[int(n_env_id)][2], 
+                                             obj_rec[int(n_env_id)][0], obj_rec[int(n_env_id)][1], pos, 
                                              env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s)
+                
+                # Print the records and write them to the log files
                 if args.log:
                     print(f"***************** Records *****************\n")
                     print(report_text)
@@ -865,8 +878,9 @@ if __name__ == '__main__':
                 
                 # Update the observation into the new observation to be used by later deciding
                 obs = n_obs
-
+                
                 # Update the record to be the new rec
+                # update the env & obj record matrix 
                 pos, env_rec, obj_rec = n_pos, n_env_rec, n_obj_rec
 
                 # Increment the action index
@@ -874,6 +888,9 @@ if __name__ == '__main__':
 
                 # Update the experience into the combined experience to be used by later deciding
                 exp = c_exp
+
+                # Update the act history to the n_act_his
+                act_his = n_act_his.copy()
 
         # Update the environment ID into the new one
         o_env_id = n_env_id

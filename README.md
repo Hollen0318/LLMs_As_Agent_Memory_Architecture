@@ -35,12 +35,12 @@ python start.py --API-key ./utilities/API/API_1 --envs 0 --log --overwrite --sys
 
 2. Test the environment with `--API-key` stored under `./utilities/API/API_1`,`--sys-msg` under `./utilities/n_sys_msg.txt`, number of steps as 50, exploring all the environment and limiting the experience tokens limit to 1000 with all other settings in default. 
 ```shell
-python start.py --all --API-key utilities/API/API_1 --lim 800 --log --overwrite --steps 20 --sys-msg ./utilities/n_sys_msg.txt --view 3 --wandb 
+python start.py --all --API-key utilities/API/API_1 --lim 800 --log --overwrite --steps 20 --view 3 --wandb 
 ```
 
 3. Test 20000 steps in environment 0
 ```shell
-python start.py --envs 0 --API-key utilities/API/API_1 --lim 1000 --log --overwrite --steps 20000 --sys-msg ./utilities/n_sys_msg.txt --view 3 --wandb 
+python start.py --envs 0 --API-key utilities/API/API_1 --lim 1000 --log --overwrite --steps 20000 --view 3 --wandb 
 ```
 The screenshots, observation, experience and actions being taken will be uploaded to the wandb as well as saved under environmentID/configs. 
 For example:
