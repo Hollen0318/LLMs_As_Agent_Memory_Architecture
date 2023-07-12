@@ -8,7 +8,7 @@
 
 3. Direction:
 
-    {}
+    You are facing {}
 
 4. Observations on surroundings:
 
@@ -16,15 +16,15 @@
 
 5. Inventory Status:
 
-    {}
+    Your inventory status is {}
 
 6. Environment ID:
 
-    {}
+    This is Environment # {}
 
 7. Past actions:
 
-    {}
+    Your past actions are {}
 
 8. Gained experience:
 
@@ -33,3 +33,11 @@
 9. Front object:
     
     {}
+
+Choose your action using an integer from 0 - 5 (integer only): 
+(0) left: turn your view to the left object
+(1) right: turn your view to the right object
+(2) toggle: toggle the object in front of you
+(3) forward: move yourself to the front object if it's empty or opened
+(4) pick up: pick up the front object if it can be picked up
+(5) drop off: drop off the current inventory if front is empty

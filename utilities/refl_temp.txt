@@ -10,7 +10,7 @@ Old observation is:
 
 3. Direction:
 
-    {}
+    You are facing {}
 
 4. Observations on surroundings:
 
@@ -18,11 +18,11 @@ Old observation is:
 
 5. Inventory Status:
 
-    {}
+    Your inventory status is {}
 
 6. Environment ID:
 
-    {}
+    This is Environment # {}
 
 7. You have choose to do:
 
@@ -44,7 +44,7 @@ New observation is:
 
 3. Direction:
 
-    {}
+    You are facing {}
 
 4. Observations on surroundings:
 
@@ -52,25 +52,21 @@ New observation is:
 
 5. Inventory Status:
 
-    {}
+    Your inventory status is {}
 
 6. Environment ID:
 
-    {}
+    This is Environment # {}
 
-7. You have choose to do:
-
-    {}
-
-8. Front object:
+7. Front object:
     
     {}
 
-You past actions are:
-
-    {}
+Your past actions are {}
 
 what new experience you find is helpful for you to explore the world in the future? 
 what object you have seen and what kind of interactions have you tried, what are their feedbacks?
 What do you think the attribute could be for the already seen objects?
 Refer to your past actions, what will you do to explore the world as much as you can?
+
+Limit your experience to be less than {}.
