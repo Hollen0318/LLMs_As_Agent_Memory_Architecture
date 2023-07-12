@@ -1,0 +1,32 @@
+A. Environment record
+
+1. View:
+
+    {}
+
+2. Interact:
+
+    {}
+
+3. Step:
+
+    {}
+
+B. Object record
+
+1. View:
+    
+    {}
+
+2. Interact:
+
+    {}
+
+C. Global position is:
+
+    {}
+
+D. Five ratios are:
+
+    env_view_r = {}; env_intr_r = {}; env_step_r = {}
+    obj_view_r = {}; obj_intr_r = {}

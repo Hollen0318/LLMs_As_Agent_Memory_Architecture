@@ -1,0 +1,76 @@
+Old observation is:
+
+1. World Exploration Map:
+
+    {}
+
+2. Position in World Exploration Map:
+
+    {}
+
+3. Direction:
+
+    {}
+
+4. Observations on surroundings:
+
+    {}
+
+5. Inventory Status:
+
+    {}
+
+6. Environment ID:
+
+    {}
+
+7. You have choose to do:
+
+    {}
+
+8. Front object:
+    
+    {}
+
+New observation is:
+
+1. World Exploration Map:
+
+    {}
+
+2. Position in World Exploration Map:
+
+    {}
+
+3. Direction:
+
+    {}
+
+4. Observations on surroundings:
+
+    {}
+
+5. Inventory Status:
+
+    {}
+
+6. Environment ID:
+
+    {}
+
+7. You have choose to do:
+
+    {}
+
+8. Front object:
+    
+    {}
+
+You past actions are:
+
+    {}
+
+what new experience you find is helpful for you to explore the world in the future? 
+what object you have seen and what kind of interactions have you tried, what are their feedbacks?
+What do you think the attribute could be for the already seen objects?
+Refer to your past actions, what will you do to explore the world as much as you can?

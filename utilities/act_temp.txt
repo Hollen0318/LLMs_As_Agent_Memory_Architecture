@@ -1,0 +1,35 @@
+1. World Exploration Map:
+
+    {}
+
+2. Position in World Exploration Map:
+
+    {}
+
+3. Direction:
+
+    {}
+
+4. Observations on surroundings:
+
+    {}
+
+5. Inventory Status:
+
+    {}
+
+6. Environment ID:
+
+    {}
+
+7. Past actions:
+
+    {}
+
+8. Gained experience:
+
+    {}
+
+9. Front object:
+    
+    {}

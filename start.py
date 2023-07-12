@@ -18,6 +18,203 @@ import numpy as np
 def choose_act(action):
     return str(action)
 
+# Conver the text act into MiniGrid action object, update the inventory as well
+def cvt_act(args, inv, act, fro_obj):
+    act_obj_pair = {"left": Actions.left, "right": Actions.right, "toggle": Actions.toggle,
+                        "forward": Actions.forward, "pick up": Actions.pickup, "drop off": Actions.drop}
+    # Objects: {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, agent: 10}
+    # Colors: {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
+    # States: {open: 0, closed: 1, locked: 2}
+    act_obj = act_obj_pair[act]
+    l_fro_objs = fro_obj.strip("[]").split()
+    l_fro_obj = [int(e) for e in l_fro_objs]
+    if act == "pick up" and inv == 0 and l_fro_obj[0] in [5, 6, 7]:
+        inv = l_fro_obj[0]
+    elif act == "drop off" and l_fro_obj[0] in [1, 3]:
+        inv = 0
+    else:
+        inv = inv
+    return inv, act_obj
+
+# Describe the relative location based on the diff_x and diff_y, where the positve values
+# means at the front or on the right by default
+def describe_location(diff_x, diff_y):
+    """Returns a description of a location based on the relative coordinates."""
+    description = ""
+    # Describe the front/back direction
+    if diff_y >= 0:
+        description += f"{abs(diff_y)} step(s) in front of you"
+    elif diff_y < 0:
+        description += f"{abs(diff_y)} step(s) in back of you"
+    # Describe the left/right direction
+    if diff_x > 0:
+        description += f" and {abs(diff_x)} step(s) to your left"
+    elif diff_x <= 0:
+        description += f" and {abs(diff_x)} step(s) to your right"
+    return description
+
+# Function called by the OpenAI API to choose an action
+def get_action(args, text):
+    if args.log:
+        print(f"\n################## Starting Deciding ##################\n")
+        print(f"Prompt Message =\n\n{text}\n")
+    write_log(f"\n################## Starting Deciding ##################\n")
+    write_log(f"Prompt Message =\n\n{text}\n")
+    act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
+                    "3": "forward", "4": "pick up", "5": "drop off"}
+    if args.input:
+        if args.log:
+            print(f"{open(args.sys_msg).read()}")
+            print(f"{text}")
+            print(f"{open(args.fuc_msg).read()}\n")
+        write_log(f"{open(args.sys_msg).read()}")
+        write_log(f"{text}")
+        write_log(f"{open(args.fuc_msg).read()}\n")
+        valid = [str(i) for i in range(6)]
+        while True:
+            act = input("") 
+            if act in valid:
+                break
+            else:
+                continue
+    else:
+        valid = [i for i in range(6)]
+        gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
+        sys_msg = open(args.sys_msg).read()
+        if args.goal:
+            sys_msg += "\nYou will be prompted a goal specific to the environment.\n"
+        msg = [{"role": "system", "content": sys_msg}]
+        fuc_msg = open(args.fuc_msg).read()
+        fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
+        usr_msg = text + f"\n{fuc_msg}"      
+        msg.append({"role": "user", "content": usr_msg})
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+        while True:
+            try:
+                rsp = openai.ChatCompletion.create(
+                model=gpt_map[args.gpt],
+                messages=msg,
+                functions = fuc,
+                function_call = "auto",
+                temperature = args.temp
+                )
+                rsp_msg = rsp["choices"][0]["message"]
+                if rsp_msg.get("function_call"):
+                    fuc_l = {
+                        "choose_act": choose_act,
+                    }
+                    fuc_n = rsp_msg["function_call"]["name"]
+                    if fuc_n == "choose_act":
+                        fuc_c = fuc_l[fuc_n]
+                        fuc_args = json.loads(rsp_msg["function_call"]["arguments"])
+                        if fuc_args.get("action") in valid:
+                            act = fuc_c(
+                                action = fuc_args.get("action")
+                            )
+                break
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
+    return act_obj_pair[act]
+
+# Get the mapping list between 0,1,2,3 and environment names in a list
+def get_env_id_mapping(args):
+    file_name = args.env_id_maps
+    id_mappings = []
+    with open(file_name, "r") as file:
+        for line in file:
+            _, env_name = line.strip().split(", ")
+            id_mappings.append(env_name)
+    return id_mappings
+
+# Getting the experience based on two text description and past actions 
+def get_exp(args, text, n_text, act, act_his, p_exp):
+    if args.log:
+        print(f"\n################## Starting Reflection ##################\n")
+    write_log(f"\n################## Starting Reflection ##################\n")
+    if args.input:
+        usr_msg = f"Old observation is:\n\n" + text 
+        exp_msg = open(args.exp_msg).read()
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n{rvw_msg}Limit words to be less than {str(args.lim)}\n"""
+        if args.log:
+            print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
+        c_exp = input("Write your experience here")
+    else:
+        gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
+        sys_msg = open(args.sys_msg).read()
+        if args.goal:
+            sys_msg += "You will be prompted a goal in the environment.\n"
+        msg = [{"role": "system", "content": sys_msg}]
+        usr_msg = f"Old observation is:\n\n" + text 
+        exp_msg = open(args.exp_msg).read()
+        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
+        if args.log:
+            print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
+        msg.append({"role": "user", "content": usr_msg})
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+        while True:
+            try:
+                rsp = openai.ChatCompletion.create(
+                    model=gpt_map[args.gpt],
+                    messages=msg,
+                    temperature = args.temp, 
+                    max_tokens = args.lim
+                )
+                n_exp = rsp["choices"][0]["message"]["content"]
+                break
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
+        if args.log:
+            print(f"\n***************** Gained Experience *****************\n")
+            print(f"{n_exp}")
+            print(f"\n################## Starting Reviewing ##################\n")
+        write_log(f"\n***************** Gained Experience *****************\n")
+        write_log(f"{n_exp}")
+        write_log(f"\n################## Starting Reviewing ##################\n")
+        msg = [{"role": "system", "content": sys_msg}]
+        usr_msg = f"Old experience is:\n\n" + p_exp
+        rvw_msg = open(args.rvw_msg).read()
+        usr_msg += f"""\n\nNew experience is:\n\n{n_exp}\n\nYour past actions are {", ".join(act_his)}\n\n{rvw_msg}\nLimit words to be less than {str(args.lim)}\n"""
+        if args.log:
+            print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
+        msg.append({"role": "user", "content": usr_msg})
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+        while True:
+            try:
+                rsp = openai.ChatCompletion.create(
+                    model=gpt_map[args.gpt],
+                    messages=msg,
+                    temperature = args.temp, 
+                    max_tokens = args.lim
+                )
+                c_exp = rsp["choices"][0]["message"]["content"]
+                break
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
+    if args.log:
+        print(f"\n***************** Summarized Experience *****************\n")
+        print(f"{c_exp}")
+    write_log(f"\n***************** Summarized Experience *****************\n")
+    write_log(f"{c_exp}")
+    return n_exp, p_exp, c_exp
+
+# Function to get the front object based on the observation
+def get_fro_obj(args, obs):
+
 # Get the saving path for the current argument setting
 def get_path(args):
     # Test if the model is getting directions from input
@@ -37,23 +234,47 @@ def get_path(args):
     full_path = os.path.join(dir_n, env_names, folder_name)
     return full_path
 
-# Function to write the logging infos in to log save file
-def write_log(text):
-    # Open the file in append mode
-    save_path = get_path(args)
-    with open(os.path.join(save_path, f"log.txt"), "a") as file:
-        # Write the strings to the file
-        file.write(text)
+# Function to get re-spawn position 
+def get_pos_m(args):
+    # read data from txt file
+    with open(args.env_pos, 'r') as f:
+        lines = f.readlines()
 
-# Get the mapping list between 0,1,2,3 and environment names in a list
-def get_env_id_mapping(args):
-    file_name = args.env_id_maps
-    id_mappings = []
-    with open(file_name, "r") as file:
-        for line in file:
-            _, env_name = line.strip().split(", ")
-            id_mappings.append(env_name)
-    return id_mappings
+    # parse the data and create matrices
+    pos_m = {}
+    for line in lines:
+        env_id, x, y = map(int, line.strip().split(','))
+        pos_m[env_id] = (x, y)
+
+    return pos_m
+
+# Function to return six matrices measuring the exploration ratio (environment for current env_id), 
+# they are two:
+# A. Environment Ratio
+#   1. view:      how much agent has seen versus whole environment
+#   2. intr:      how much agent has toggle, pick up, drop off versus all environment
+#   3. step:      how much agent has stepped into versus whole environment
+
+# B. Object Ratio
+#   1. view:      how much agent has seen versus whole objects list
+#   2. intr:      how much agent has toggle, pick up, drop off versus all objects list
+def get_ratios(args, env_id, env_rec, obj_rec):
+    env_view_r = np.sum(env_rec[env_id][0]) / env_rec[env_id][0].size * 100
+    env_view_r_s = "{:.3f}%".format(env_view_r)
+    env_intr_r = np.sum(env_rec[env_id][1]) / env_rec[env_id][1].size * 100
+    env_intr_r_s = "{:.3f}%".format(env_intr_r)
+    env_step_r = np.sum(env_rec[env_id][2]) / env_rec[env_id][2].size * 100
+    env_step_r_s = "{:.3f}%".format(env_step_r)
+    obj_view_r = np.sum(obj_rec[env_id][0]) / obj_rec[env_id][0].size * 100
+    obj_view_r_s = "{:.3f}%".format(obj_view_r)
+    obj_intr_r = np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100
+    obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
+    if args.log:
+        print(f"\n***************** Records *****************\n")
+        print(f"Five ratios are:\nenv_view_r = {env_view_r_s}; env_intr_r = {env_intr_r_s}; env_step_r = {env_step_r_s}\nobj_view_r = {obj_view_r_s}; obj_intr_r = {obj_intr_r_s}\n")
+    write_log(f"\n***************** Records *****************\n")
+    write_log(f"\nFive ratios are:\nenv_view_r = {env_view_r_s}; env_intr_r = {env_intr_r_s}; env_step_r = {env_step_r_s}\nobj_view_r = {obj_view_r_s}; obj_intr_r = {obj_intr_r_s}\n")
+    return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r
 
 # Function to get the env, dimension, height, width 4-dimensional matrix, used for calculating exploration rate
 def get_rec(args):
@@ -70,37 +291,6 @@ def get_rec(args):
         obj_rec[env_id] = np.array([[0 for i in range(11)] for j in range(2)])
 
     return env_rec, obj_rec
-
-# Function to get re-spawn position 
-def get_pos_m(args):
-    # read data from txt file
-    with open(args.env_pos, 'r') as f:
-        lines = f.readlines()
-
-    # parse the data and create matrices
-    pos_m = {}
-    for line in lines:
-        env_id, x, y = map(int, line.strip().split(','))
-        pos_m[env_id] = (x, y)
-
-    return pos_m
-
-# Describe the relative location based on the diff_x and diff_y, where the positve values
-# means at the front or on the right by default
-def describe_location(diff_x, diff_y):
-    """Returns a description of a location based on the relative coordinates."""
-    description = ""
-    # Describe the front/back direction
-    if diff_y >= 0:
-        description += f"{abs(diff_y)} step(s) in front of you"
-    elif diff_y < 0:
-        description += f"{abs(diff_y)} step(s) in back of you"
-    # Describe the left/right direction
-    if diff_x > 0:
-        description += f" and {abs(diff_x)} step(s) to your left"
-    elif diff_x <= 0:
-        description += f" and {abs(diff_x)} step(s) to your right"
-    return description
 
 # Convert the observation into environment description, it takes input of 
 # surroundings, inventory and past experience at the hand
@@ -203,203 +393,6 @@ def obs_to_description(args, obs, inv, exp, env_id, act_his):
             descriptions.append(description)
             descriptions_e.append(description)
             return "\n".join(descriptions), "\n".join(descriptions_e), front_object
-
-
-
-# Function called by the OpenAI API to choose an action
-def get_action(args, text):
-    if args.log:
-        print(f"\n################## Starting Deciding ##################\n")
-        print(f"Prompt Message =\n\n{text}\n")
-    write_log(f"\n################## Starting Deciding ##################\n")
-    write_log(f"Prompt Message =\n\n{text}\n")
-    act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
-                    "3": "forward", "4": "pick up", "5": "drop off"}
-    if args.input:
-        if args.log:
-            print(f"{open(args.sys_msg).read()}")
-            print(f"{text}")
-            print(f"{open(args.fuc_msg).read()}\n")
-        write_log(f"{open(args.sys_msg).read()}")
-        write_log(f"{text}")
-        write_log(f"{open(args.fuc_msg).read()}\n")
-        valid = [str(i) for i in range(6)]
-        while True:
-            act = input("") 
-            if act in valid:
-                break
-            else:
-                continue
-    else:
-        valid = [i for i in range(6)]
-        gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
-        sys_msg = open(args.sys_msg).read()
-        if args.goal:
-            sys_msg += "\nYou will be prompted a goal specific to the environment.\n"
-        msg = [{"role": "system", "content": sys_msg}]
-        fuc_msg = open(args.fuc_msg).read()
-        fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
-        usr_msg = text + f"\n{fuc_msg}"      
-        msg.append({"role": "user", "content": usr_msg})
-        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        while True:
-            try:
-                rsp = openai.ChatCompletion.create(
-                model=gpt_map[args.gpt],
-                messages=msg,
-                functions = fuc,
-                function_call = "auto",
-                temperature = args.temp
-                )
-                rsp_msg = rsp["choices"][0]["message"]
-                if rsp_msg.get("function_call"):
-                    fuc_l = {
-                        "choose_act": choose_act,
-                    }
-                    fuc_n = rsp_msg["function_call"]["name"]
-                    if fuc_n == "choose_act":
-                        fuc_c = fuc_l[fuc_n]
-                        fuc_args = json.loads(rsp_msg["function_call"]["arguments"])
-                        if fuc_args.get("action") in valid:
-                            act = fuc_c(
-                                action = fuc_args.get("action")
-                            )
-                break
-            except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # double the delay each time we retry
-    return act_obj_pair[act]
-
-# Function to return six matrices measuring the exploration ratio (environment for current env_id), 
-# they are two:
-# A. Environment Ratio
-#   1. view:      how much agent has seen versus whole environment
-#   2. intr:      how much agent has toggle, pick up, drop off versus all environment
-#   3. step:      how much agent has stepped into versus whole environment
-
-# B. Object Ratio
-#   1. view:      how much agent has seen versus whole objects list
-#   2. intr:      how much agent has toggle, pick up, drop off versus all objects list
-def get_ratios(args, env_id, env_rec, obj_rec):
-    env_view_r = np.sum(env_rec[env_id][0]) / env_rec[env_id][0].size * 100
-    env_view_r_s = "{:.3f}%".format(env_view_r)
-    env_intr_r = np.sum(env_rec[env_id][1]) / env_rec[env_id][1].size * 100
-    env_intr_r_s = "{:.3f}%".format(env_intr_r)
-    env_step_r = np.sum(env_rec[env_id][2]) / env_rec[env_id][2].size * 100
-    env_step_r_s = "{:.3f}%".format(env_step_r)
-    obj_view_r = np.sum(obj_rec[env_id][0]) / obj_rec[env_id][0].size * 100
-    obj_view_r_s = "{:.3f}%".format(obj_view_r)
-    obj_intr_r = np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100
-    obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
-    if args.log:
-        print(f"\n***************** Records *****************\n")
-        print(f"Five ratios are:\nenv_view_r = {env_view_r_s}; env_intr_r = {env_intr_r_s}; env_step_r = {env_step_r_s}\nobj_view_r = {obj_view_r_s}; obj_intr_r = {obj_intr_r_s}\n")
-    write_log(f"\n***************** Records *****************\n")
-    write_log(f"\nFive ratios are:\nenv_view_r = {env_view_r_s}; env_intr_r = {env_intr_r_s}; env_step_r = {env_step_r_s}\nobj_view_r = {obj_view_r_s}; obj_intr_r = {obj_intr_r_s}\n")
-    return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r
-
-# Conver the text act into MiniGrid action object, update the inventory as well
-def cvt_act(args, inv, act, fro_obj):
-    act_obj_pair = {"left": Actions.left, "right": Actions.right, "toggle": Actions.toggle,
-                        "forward": Actions.forward, "pick up": Actions.pickup, "drop off": Actions.drop}
-    # Objects: {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, agent: 10}
-    # Colors: {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
-    # States: {open: 0, closed: 1, locked: 2}
-    act_obj = act_obj_pair[act]
-    l_fro_objs = fro_obj.strip("[]").split()
-    l_fro_obj = [int(e) for e in l_fro_objs]
-    if act == "pick up" and inv == 0 and l_fro_obj[0] in [5, 6, 7]:
-        inv = l_fro_obj[0]
-    elif act == "drop off" and l_fro_obj[0] in [1, 3]:
-        inv = 0
-    else:
-        inv = inv
-    return inv, act_obj
-
-# Getting the experience based on two text description and past actions 
-def get_exp(args, text, n_text, act, act_his, p_exp):
-    if args.log:
-        print(f"\n################## Starting Reflection ##################\n")
-    write_log(f"\n################## Starting Reflection ##################\n")
-    if args.input:
-        usr_msg = f"Old observation is:\n\n" + text 
-        exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n{rvw_msg}Limit words to be less than {str(args.lim)}\n"""
-        if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
-        c_exp = input("Write your experience here")
-    else:
-        gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
-        sys_msg = open(args.sys_msg).read()
-        if args.goal:
-            sys_msg += "You will be prompted a goal in the environment.\n"
-        msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = f"Old observation is:\n\n" + text 
-        exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
-        if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
-        msg.append({"role": "user", "content": usr_msg})
-        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        while True:
-            try:
-                rsp = openai.ChatCompletion.create(
-                    model=gpt_map[args.gpt],
-                    messages=msg,
-                    temperature = args.temp, 
-                    max_tokens = args.lim
-                )
-                n_exp = rsp["choices"][0]["message"]["content"]
-                break
-            except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # double the delay each time we retry
-        if args.log:
-            print(f"\n***************** Gained Experience *****************\n")
-            print(f"{n_exp}")
-            print(f"\n################## Starting Reviewing ##################\n")
-        write_log(f"\n***************** Gained Experience *****************\n")
-        write_log(f"{n_exp}")
-        write_log(f"\n################## Starting Reviewing ##################\n")
-        msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = f"Old experience is:\n\n" + p_exp
-        rvw_msg = open(args.rvw_msg).read()
-        usr_msg += f"""\n\nNew experience is:\n\n{n_exp}\n\nYour past actions are {", ".join(act_his)}\n\n{rvw_msg}\nLimit words to be less than {str(args.lim)}\n"""
-        if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
-        msg.append({"role": "user", "content": usr_msg})
-        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        while True:
-            try:
-                rsp = openai.ChatCompletion.create(
-                    model=gpt_map[args.gpt],
-                    messages=msg,
-                    temperature = args.temp, 
-                    max_tokens = args.lim
-                )
-                c_exp = rsp["choices"][0]["message"]["content"]
-                break
-            except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # double the delay each time we retry
-    if args.log:
-        print(f"\n***************** Summarized Experience *****************\n")
-        print(f"{c_exp}")
-    write_log(f"\n***************** Summarized Experience *****************\n")
-    write_log(f"{c_exp}")
-    return n_exp, p_exp, c_exp
 
 # Function to update the view based on the observation
 def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
@@ -510,6 +503,48 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj):
 
     return pos, env_rec, obj_rec
 
+# Function to write into the act_temp.txt to hint an action
+def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp):
+
+    dir = obs['direction']
+    dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+    dir_s = f"You are facing {dir_dic[dir]}"
+    img = obs['image'].transpose(1,0,2)
+    act_his_s = ", ".join(act_his)
+    with open(args.act_temp, 'r') as file:
+        temp = file.read()
+
+    obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
+    col_idx = {0: "black", 1: "green", 2: "blue", 3: "purple", 4: "yellow", 5: "grey"}
+    sts_idx = {0: "open", 1: "closed", 2: "locked"}
+
+    
+
+    act_temp_s = temp.format(world_map, pos, dir_s, str(img), str(inv), str(env_id), act_his_s, c_exp, fro_obj)
+    
+    return act_temp_s
+
+# Function to write the logging infos in to log save file
+def write_log(text):
+    # Open the file in append mode
+    save_path = get_path(args)
+    with open(os.path.join(save_path, f"log.txt"), "a") as file:
+        # Write the strings to the file
+        file.write(text)
+
+# Function to write into the refl_temp.txt to hint an reflection based on past & new observation
+def write_refl_temp(args, o_world_map, o_pos, o_obs, o_inv, o_env_id, 
+                   o_act_his, o_c_exp, o_fro_obj, n_world_map, n_pos, n_obs, n_inv, 
+                   n_env_id, n_act_his, n_c_exp, n_fro_obj):
+    
+# Function to write into the rpt_temp.txt to report the current progress.
+def write_rpt_temp(args, env_view, env_intr, env_step, obj_view, obj_intr, pos, 
+                   env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r):
+    
+# Function to write into the sum_temp.txt to hint an summarized experience based past & new experience
+def write_sum_temp(args, o_exp, n_exp, act_his):
+
+
 # Main code for agent
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -517,6 +552,12 @@ if __name__ == '__main__':
         "--all",
         action = "store_true",
         help = "to load all the environments if given",
+    )
+    parser.add_argument(
+        "--act-temp",
+        default = "./utilities/act_temp.txt",
+        type = str,
+        help = "the location to load your action prompt message template"
     )
     parser.add_argument(
         "--API-key",
@@ -610,9 +651,21 @@ if __name__ == '__main__':
         default = "LLM As Agent"
     )
     parser.add_argument(
+        "--refl-temp",
+        default = "./utilities/refl_temp.txt",
+        type = str,
+        help = "the location to load your reflect prompt message template"
+    )
+    parser.add_argument(
         "--rel-des",
         action = "store_true",
         help = "whether to use relative position description or pure array print as observation description" 
+    )
+    parser.add_argument(
+        "--rpt-temp",
+        default = "./utilities/rpt_tempt.txt",
+        type = str,
+        help = "the location to load your exploration report template format"
     )
     parser.add_argument(
         "--rvw-msg",
@@ -648,6 +701,12 @@ if __name__ == '__main__':
         type = int,
         default = 20,
         help = "the maximum numbers of steps each environment will be taken"
+    )
+    parser.add_argument(
+        "--sum-temp",
+        default = "./utilities/sum_temp.txt",
+        type = str,
+        help = "the location to load your summarization prompt message template"
     )
     parser.add_argument(
         "--sys-msg",
@@ -730,9 +789,7 @@ if __name__ == '__main__':
         args.envs = [str(i) for i in range(61)]
     if args.log:
         print(f"\n################## System Message ##################\n")
-        print(f"{open(args.sys_msg).read()}")
     write_log(f"\n################## System Message ##################\n")
-    write_log(f"{open(args.sys_msg).read()}")
 
     # Load the environment size txt, and create a env_id, channel, height, width 4-dimensional 
     # env_rec to record the exploration with environment, and channel, height, width 3-dimensional 
