@@ -14,26 +14,27 @@ import sys
 import pyautogui
 import numpy as np
 
+
 # Function to return what GPT returns in sring format
 def choose_act(action):
     return str(action)
 
 # Conver the text act into MiniGrid action object, update the inventory as well
-def cvt_act(args, inv, act, fro_obj):
+def cvt_act(args, inv, act, fro_obj_l):
+
     act_obj_pair = {"left": Actions.left, "right": Actions.right, "toggle": Actions.toggle,
                         "forward": Actions.forward, "pick up": Actions.pickup, "drop off": Actions.drop}
+    
     # Objects: {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, agent: 10}
     # Colors: {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
     # States: {open: 0, closed: 1, locked: 2}
     act_obj = act_obj_pair[act]
-    l_fro_objs = fro_obj.strip("[]").split()
-    l_fro_obj = [int(e) for e in l_fro_objs]
-    if act == "pick up" and inv == 0 and l_fro_obj[0] in [5, 6, 7]:
-        inv = l_fro_obj[0]
-    elif act == "drop off" and l_fro_obj[0] in [1, 3]:
+
+    if act == "pick up" and inv == 0 and fro_obj_l[0] in [5, 6, 7]:
+        inv = fro_obj_l[0]
+    elif act == "drop off" and fro_obj_l[0] in [1, 3]:
         inv = 0
-    else:
-        inv = inv
+
     return inv, act_obj
 
 # Describe the relative location based on the diff_x and diff_y, where the positve values
@@ -86,7 +87,7 @@ def get_action(args, text):
         msg = [{"role": "system", "content": sys_msg}]
         fuc_msg = open(args.fuc_msg).read()
         fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
-        usr_msg = text + f"\n{fuc_msg}"      
+        usr_msg = text     
         msg.append({"role": "user", "content": usr_msg})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
@@ -131,17 +132,14 @@ def get_env_id_mapping(args):
     return id_mappings
 
 # Getting the experience based on two text description and past actions 
-def get_exp(args, text, n_text, act, act_his, p_exp):
+def get_exp(args, reflect_hint, p_exp):
     if args.log:
         print(f"\n################## Starting Reflection ##################\n")
     write_log(f"\n################## Starting Reflection ##################\n")
     if args.input:
-        usr_msg = f"Old observation is:\n\n" + text 
-        exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\nYour past experience is {p_exp}\n\n{exp_msg}\n{rvw_msg}Limit words to be less than {str(args.lim)}\n"""
         if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
+            print(f"Prompt Message = \n\n{reflect_hint}")
+        write_log(f"Prompt Message = \n\n{reflect_hint}")
         c_exp = input("Write your experience here")
     else:
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
@@ -149,9 +147,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
         if args.goal:
             sys_msg += "You will be prompted a goal in the environment.\n"
         msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = f"Old observation is:\n\n" + text 
-        exp_msg = open(args.exp_msg).read()
-        usr_msg += f"""\nYou have choose to do {act}\n\nNew observation is:\n{n_text}\n\nYour past actions are {", ".join(act_his)}\n\n{exp_msg}\n"""
+        usr_msg = reflect_hint
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
         write_log(f"Prompt Message = \n\n{usr_msg}")
@@ -160,8 +156,8 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
         while True:
             try:
                 rsp = openai.ChatCompletion.create(
-                    model=gpt_map[args.gpt],
-                    messages=msg,
+                    model = gpt_map[args.gpt],
+                    messages = msg,
                     temperature = args.temp, 
                     max_tokens = args.lim
                 )
@@ -181,9 +177,7 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
         write_log(f"{n_exp}")
         write_log(f"\n################## Starting Reviewing ##################\n")
         msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = f"Old experience is:\n\n" + p_exp
-        rvw_msg = open(args.rvw_msg).read()
-        usr_msg += f"""\n\nNew experience is:\n\n{n_exp}\n\nYour past actions are {", ".join(act_his)}\n\n{rvw_msg}\nLimit words to be less than {str(args.lim)}\n"""
+        usr_msg = write_sum_temp(args, p_exp, n_exp, act_his)
         if args.log:
             print(f"Prompt Message = \n\n{usr_msg}")
         write_log(f"Prompt Message = \n\n{usr_msg}")
@@ -215,6 +209,26 @@ def get_exp(args, text, n_text, act, act_his, p_exp):
 # Function to get the front object based on the observation
 def get_fro_obj(args, obs):
 
+    img = obs['image'].transpose(1,0,2)
+
+    # The user location in the MiniGrid is always (view//2,view-1) where the x axis
+    # points to the right and y axis points to the down direction 
+    user_x, user_y = args.view - 1, args.view // 2
+
+    for x in range(args.view):
+        for y in range(args.view):
+            # We record the object in front of the agent for future use
+            if y == user_y and x == user_x - 1:
+                fro_obj_l = img[x,y]
+
+    obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
+    col_idx = {0: "black", 1: "green", 2: "blue", 3: "purple", 4: "yellow", 5: "grey"}
+    sts_idx = {0: "open", 1: "closed", 2: "locked"}
+
+    fro_obj_s = f"Your front object is {obj_idx[fro_obj_l[0]]} {col_idx[fro_obj_l[1]]} {sts_idx[fro_obj_l[2]]}"
+
+    return fro_obj_s, fro_obj_l
+
 # Get the saving path for the current argument setting
 def get_path(args):
     # Test if the model is getting directions from input
@@ -227,14 +241,14 @@ def get_path(args):
         env_names = "ALL"
     else:
         env_names = "_".join(args.envs)
-    arg_list = ["seed", "gpt", "view", "goal", "static", "temp", "steps", "lim", "rel-des", "refresh"]
+    arg_list = ["seed", "gpt", "view", "goal", "static", "temp", "steps", "lim", "refresh"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path
     full_path = os.path.join(dir_n, env_names, folder_name)
     return full_path
 
-# Function to get re-spawn position 
+# Function to get re-spawn position (when seed = 23 only)
 def get_pos_m(args):
     # read data from txt file
     with open(args.env_pos, 'r') as f:
@@ -269,12 +283,8 @@ def get_ratios(args, env_id, env_rec, obj_rec):
     obj_view_r_s = "{:.3f}%".format(obj_view_r)
     obj_intr_r = np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100
     obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
-    if args.log:
-        print(f"\n***************** Records *****************\n")
-        print(f"Five ratios are:\nenv_view_r = {env_view_r_s}; env_intr_r = {env_intr_r_s}; env_step_r = {env_step_r_s}\nobj_view_r = {obj_view_r_s}; obj_intr_r = {obj_intr_r_s}\n")
-    write_log(f"\n***************** Records *****************\n")
-    write_log(f"\nFive ratios are:\nenv_view_r = {env_view_r_s}; env_intr_r = {env_intr_r_s}; env_step_r = {env_step_r_s}\nobj_view_r = {obj_view_r_s}; obj_intr_r = {obj_intr_r_s}\n")
-    return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r
+    
+    return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s
 
 # Function to get the env, dimension, height, width 4-dimensional matrix, used for calculating exploration rate
 def get_rec(args):
@@ -292,108 +302,6 @@ def get_rec(args):
 
     return env_rec, obj_rec
 
-# Convert the observation into environment description, it takes input of 
-# surroundings, inventory and past experience at the hand
-def obs_to_description(args, obs, inv, exp, env_id, act_his):
-    if args.rel_des:
-        dir = obs['direction']
-        img = obs['image']
-        goal = obs['mission'] if args.goal else None
-        # The user location in the MiniGrid is always (view//2,view-1) where the x axis
-        # points to the right and y axis points to the down direction 
-        user_x, user_y = args.view // 2, args.view - 1 
-        # We denote the direction based on the MiniGrid constant.py
-        direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-        # Interpret each pixel in the observation
-        description = f"This is Environment # {env_id}"
-        descriptions = [f"You are facing {direction_dict[dir]}."]
-        descriptions.append(description)
-        # We need the front_object to be used for deterimine the inventory list,
-        # for example, if we have an pickable object, we need to log it to the inventory list
-        front_object = ""
-        for x in range(img.shape[0]):
-            for y in range(img.shape[1]):
-                # We load every squares in the image observation matrix with shape x,x,3
-                # print(f"x = {x} y = {y} obs[{x},{y}] = {obs[x,y]} user_y = {user_y} user_x = {user_x}")
-                
-                # We want to skip the unseen parts
-                if img[x,y][0] == 0:
-                    continue
-
-                # We will not record the observation for the agent itself to save the interpretation
-                if y == user_y and x == user_x:
-                    continue
-                
-                # We record the object in front of the agent for future use
-                if y == user_y - 1 and x == user_x:
-                    front_object = str(img[x,y])
-                # Calculate the difference in coordinates
-                diff_x, diff_y = user_x - x, user_y - y
-                description = f"{img[x,y]} at {describe_location(diff_x, diff_y)}."
-                descriptions.append(description)
-        description = f"Your inventory status is {inv}"
-        descriptions.append(description)
-        descriptions_e = descriptions.copy()
-        description = f"Front object is {front_object}"
-        descriptions.append(description)
-        descriptions_e.append(description)
-        descriptions_e.append(f"Your past actions are:")
-        description = ", ".join(act_his)
-        descriptions_e.append(description)
-        description = f"Your current experience is \n{exp}"
-        descriptions_e.append(description)
-
-        if goal is None:
-            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
-        else:
-            description = f"Your goal is \n{goal}"
-            descriptions.append(description)
-            descriptions_e.append(description)
-            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
-    else:
-        dir = obs['direction']
-        img = obs['image'].transpose(1,0,2)
-        goal = obs['mission'] if args.goal else None
-        # The user location in the MiniGrid is always (view//2,view-1) where the x axis
-        # points to the right and y axis points to the down direction 
-        user_x, user_y = args.view - 1, args.view // 2
-        # Change agent's location into [10,0,0]
-        img[user_x, user_y] = [10,0,0]
-        # We denote the direction based on the MiniGrid constant.py
-        direction_dict = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-        # Interpret each pixel in the observation
-        description = f"This is Environment # {env_id}"
-        descriptions = [f"You are facing {direction_dict[dir]}."]
-        descriptions.append(description)
-        # We need the front_object to be used for deterimine the inventory list,
-        # for example, if we have an pickable object, we need to log it to the inventory list
-        front_object = ""
-        description = f"Your observation is\n{img}"
-        descriptions.append(description)
-        for x in range(args.view):
-            for y in range(args.view):
-                # We record the object in front of the agent for future use
-                if y == user_y and x == user_x - 1:
-                    front_object = str(img[x,y])
-        description = f"Your inventory status is {inv}"
-        descriptions.append(description)
-        descriptions_e = descriptions.copy()
-        description = f"Front object is {front_object}"
-        descriptions.append(description)
-        descriptions_e.append(description)
-        descriptions_e.append(f"Your past actions are:")
-        description = ", ".join(act_his)
-        descriptions_e.append(description)
-        description = f"Your current experience is \n{exp}"
-        descriptions_e.append(description)
-        if goal is None:
-            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
-        else:
-            description = f"Your goal is \n{goal}"
-            descriptions.append(description)
-            descriptions_e.append(description)
-            return "\n".join(descriptions), "\n".join(descriptions_e), front_object
-
 # Function to update the view based on the observation
 def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
     if x >= 0 and x <= env_rec[env_id][0].shape[0] and y >= 0 and y <= env_rec[env_id][0].shape[1]:
@@ -407,7 +315,7 @@ def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
 # Function to update the records regarding exploration, it needs env_id to determine the environment, 
 # act to determine the interaction type, pos to determine the global position and obs to determine
 # the target of exploration
-def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj):
+def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
     # 1. Updating the env record
     img = obs['image'].transpose(1,0,2)
     if args.log:
@@ -479,36 +387,28 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj):
 
     # Update the obj interact record
     if act == "toggle" or act == "pick up" or act == "drop off":
-        obj_rec[env_id][1][int(fro_obj[1:-1].split()[0])] = 1
+        obj_rec[env_id][1][fro_obj_l[0]] = 1
 
     # 3. Update the agent's position if action is forward and front is empty space, opened door
     if act == "forward":
         # Update position if the front is door and the status is opened
-        if int(fro_obj[1:-1].split()[0]) == 4 and int(fro_obj[1:-1].split()[2]) == 0:
+        if fro_obj_l[0] == 4 and fro_obj_l[2] == 0:
             pos = fro_pos
         # Update position if the front is empty or front is goal
-        elif int(fro_obj[1:-1].split()[0]) == 1 or int(fro_obj[1:-1].split()[0]) == 8:
+        elif fro_obj_l[0] == 1 or fro_obj_l[0] == 8:
             pos = fro_pos
         # Else use old position
         else:
             pos = pos
-    
-    if args.log:
-        print(f"A. Environment record\n1. View:\n{str(env_rec[env_id][0])}\n2. Interact:\n{str(env_rec[env_id][1])}\n3. Step:\n{str(env_rec[env_id][2])}")
-        print(f"B. Object record\n1. View:\n{str(obj_rec[env_id][0])}\n2. Interact:\n{str(obj_rec[env_id][1])}")
-        print(f"Global position is {pos}")
-    write_log(f"A. Environment record\n1. View:\n{str(env_rec[env_id][0])}\n2. Interact:\n{str(env_rec[env_id][1])}\n3. Step:\n{str(env_rec[env_id][2])}")
-    write_log(f"\nB. Object record\n1. View:\n{str(obj_rec[env_id][0])}\n2. Interact:\n{str(obj_rec[env_id][1])}")
-    write_log(f"\nGlobal position is {pos}\n")
 
     return pos, env_rec, obj_rec
 
 # Function to write into the act_temp.txt to hint an action
-def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp):
-
+def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp, fro_obj_l):
     dir = obs['direction']
     dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-    dir_s = f"You are facing {dir_dic[dir]}"
+    dir_s = dir_dic[dir]
+
     img = obs['image'].transpose(1,0,2)
     act_his_s = ", ".join(act_his)
     with open(args.act_temp, 'r') as file:
@@ -518,9 +418,9 @@ def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp):
     col_idx = {0: "black", 1: "green", 2: "blue", 3: "purple", 4: "yellow", 5: "grey"}
     sts_idx = {0: "open", 1: "closed", 2: "locked"}
 
-    
+    fro_obj_s = f"Your front object is {obj_idx[fro_obj_l[0]]} {col_idx[fro_obj_l[1]]} {sts_idx[fro_obj_l[2]]}"
 
-    act_temp_s = temp.format(world_map, pos, dir_s, str(img), str(inv), str(env_id), act_his_s, c_exp, fro_obj)
+    act_temp_s = temp.format(str(world_map), str(pos), dir_s, str(img), str(inv), str(env_id), act_his_s, c_exp, fro_obj_s)
     
     return act_temp_s
 
@@ -534,16 +434,54 @@ def write_log(text):
 
 # Function to write into the refl_temp.txt to hint an reflection based on past & new observation
 def write_refl_temp(args, o_world_map, o_pos, o_obs, o_inv, o_env_id, 
-                   o_act_his, o_c_exp, o_fro_obj, n_world_map, n_pos, n_obs, n_inv, 
-                   n_env_id, n_act_his, n_c_exp, n_fro_obj):
+                   act, o_fro_obj_s, n_world_map, n_pos, n_obs, n_inv, 
+                   n_env_id, n_fro_obj_s, n_act_his):
     
+    dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+
+    o_img = o_obs['image'].transpose(1,0,2)
+    o_dir = o_obs['direction']
+    o_dir_s = dir_dic[o_dir]
+
+    n_img = n_obs['image'].transpose(1,0,2)
+    n_dir = n_obs['direction']
+    n_dir_s = dir_dic[n_dir]
+
+    
+    with open(args.refl_temp, 'r') as file:
+        temp = file.read()
+
+    refl_temp_s = temp.format(str(o_world_map), str(o_pos), o_dir_s, str(o_img), str(o_inv), 
+                             str(o_env_id), act, o_fro_obj_s, str(n_world_map), str(n_pos), 
+                             n_dir_s, str(n_img), str(n_inv), str(n_env_id), n_fro_obj_s, n_act_his, str(args.lim))
+    
+    return refl_temp_s
+
 # Function to write into the rpt_temp.txt to report the current progress.
 def write_rpt_temp(args, env_view, env_intr, env_step, obj_view, obj_intr, pos, 
-                   env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r):
+                   env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s):
     
+    with open(args.rpt_temp, 'r') as file:
+        temp = file.read()
+
+    rpt_temp_s = temp.format(str(env_view), str(env_intr), str(env_step), 
+                             str(obj_view), str(obj_intr), str(pos),
+                             env_view_r_s, env_intr_r_s, env_step_r_s,
+                             obj_view_r_s, obj_intr_r_s)
+    
+    return rpt_temp_s
+
 # Function to write into the sum_temp.txt to hint an summarized experience based past & new experience
 def write_sum_temp(args, o_exp, n_exp, act_his):
 
+    with open(args.sum_temp, 'r') as file:
+        temp = file.read()
+
+    act_his_s = ", ".join(act_his)
+
+    refl_temp_s = temp.format(o_exp, n_exp, act_his_s, str(args.lim))
+    
+    return refl_temp_s
 
 # Main code for agent
 if __name__ == '__main__':
@@ -593,12 +531,6 @@ if __name__ == '__main__':
         type = str,
         help = "the spawn position of the agent in each map",
         default = "./utilities/env_pos.txt"
-    )
-    parser.add_argument(
-        "--exp-msg",
-        type = str,
-        default = "./utilities/exp_msg.txt",
-        help = "message to hint for a experience"
     )
     parser.add_argument(
         "--exp-src",
@@ -657,21 +589,10 @@ if __name__ == '__main__':
         help = "the location to load your reflect prompt message template"
     )
     parser.add_argument(
-        "--rel-des",
-        action = "store_true",
-        help = "whether to use relative position description or pure array print as observation description" 
-    )
-    parser.add_argument(
         "--rpt-temp",
         default = "./utilities/rpt_tempt.txt",
         type = str,
         help = "the location to load your exploration report template format"
-    )
-    parser.add_argument(
-        "--rvw-msg",
-        type = str,
-        default = "./utilities/rvw_msg.txt",
-        help = "the review message location to read"
     )
     parser.add_argument(
         "--rty-dly",
@@ -712,7 +633,7 @@ if __name__ == '__main__':
         "--sys-msg",
         type = str,
         default = "./utilities/sys_msg.txt",
-        help = "message to hint for an action"
+        help = "the location to load your hint message as agent's system background"
     )
     parser.add_argument(
         "--temp",
@@ -734,7 +655,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--refresh",
         type = int,
-        default = 30,
+        default = 20,
         help = "for every x runs, refresh the action history"
     )
     args = parser.parse_args()
@@ -789,6 +710,8 @@ if __name__ == '__main__':
         args.envs = [str(i) for i in range(61)]
     if args.log:
         print(f"\n################## System Message ##################\n")
+        print(f"{open(args.sys_msg).read()}")    
+    write_log(f"{open(args.sys_msg).read()}")
     write_log(f"\n################## System Message ##################\n")
 
     # Load the environment size txt, and create a env_id, channel, height, width 4-dimensional 
@@ -800,24 +723,33 @@ if __name__ == '__main__':
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
 
+    # Use old environment id o_env_id to track the environment changing 
+    if args.all:
+        o_env_id = 0
+    else:
+        o_env_id = int(args.envs[0])
+
     # Iterate over all the environment
     for i in args.envs:
         # For every new environment, the inventory is always 0 (empty)
         # The i is a string representing environment ID, e.g. "1"
+        n_env_id = i
         inv = 0
-        env_name = envs_id_mapping[int(i)]
+        env_name = envs_id_mapping[int(n_env_id)]
         if args.log:
             print(f"Loading environment = {env_name}")
         write_log(f"Loading environment = {env_name}")
+
         env: MiniGridEnv = gym.make(
             id = env_name,
             render_mode = "human" if args.disp else "rgb_array",
             agent_view_size = args.view,
             screen_size = args.screen
         )
+
         if args.wandb:
             scn_table = wandb.Table(columns = ["img", "obs", "text", "pos", "act", "n_exp", "c_exp"])
-            rec_table = wandb.Table(columns = ["env_view", "env_intr", "env_step", "pos", "act", "obj_view", "obj_intr"])
+            rec_table = wandb.Table(columns = ["env_view", "env_intr", "env_step", "pos", "dir", "act", "obj_view", "obj_intr"])
         
         # For every new environment, the action history is always 0 (empty)
         act_his = []
@@ -825,38 +757,45 @@ if __name__ == '__main__':
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
         
-        # Get the respawn position
+        # Get the respawn position for seed = 23 only
         pos = pos_m[int(i)]
 
-        # Iterate the agent exploration in the limit of args.steps
+        # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
 
-            # We refresh the action history every args.refresh run to avoid too large action space
-            if j % args.refresh == 0:
-                act_his = []
+            # get five ratios measuring the exploration ratio
+            env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s = get_ratios(args, int(n_env_id), env_rec, obj_rec)
 
-            # gain the text description and front object index
-            text, text_e, fro_obj = obs_to_description(args, obs, inv, exp, i, act_his)
+            # We refresh the action history every args.refresh run to avoid too large action space
+            if len(act_his) >= args.refresh:
+                act_his = act_his[1:]
+
+            # gain the fro_obj
+            fro_obj_s, fro_obj_l = get_fro_obj(obs)
+
+            # write into the act template to obtain a action hint message
+            act_hint = write_act_temp(args, env_rec[int(n_env_id)][0], pos, obs, inv, int(n_env_id), act_his, exp, fro_obj_l)
 
             # get an action in text e.g. forward, pick up
-            act = get_action(args, text_e)
+            act = get_action(args, act_hint)
 
-            # get five ratios measuring the exploration ratio
-            env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r = get_ratios(args, int(i), env_rec, obj_rec)
+            # update the env & obj record matrix 
+            n_pos, n_env_rec, n_obj_rec = update_rec(args, env_rec, obj_rec, int(n_env_id), act, pos, fro_obj_l)
+
             if args.log:
                 print(f"***************** Gained Action *****************\n")
                 print(f"You have choose to do \"{act}\"")
             write_log(f"***************** Gained Action *****************\n")
             write_log(f"You have choose to do \"{act}\"")
 
-            # using the action to determine the inventory and MiniGrid action object
-            inv, act_obj = cvt_act(args, inv, act, fro_obj)
+            # using the action to determine the new inventory and MiniGrid action object
+            n_inv, act_obj = cvt_act(args, inv, act, fro_obj_l)
+
             if args.disp:
                 scn = pyautogui.screenshot()
                 scn.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
             else:
-
-                # make a screenshot
+                # make a screenshot on the gym
                 img_array = env.render()
                 img = Image.fromarray(img_array)
                 img.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
@@ -873,17 +812,26 @@ if __name__ == '__main__':
                 # Get the respawn position
 
                 pos = pos_m[int(i)]
-            else:
 
-                # Get the new description from the new observation & old experience, inventory, environment ID and action history    
-                n_text, n_text_e, n_fro_obj = obs_to_description(args, n_obs, inv, exp, i, act_his)
-                
+            else:
+                # get the new act_his list
+                n_act_his = act_his.copy().append(act)
+
+                # get the new fro_obj
+                n_fro_obj_s, n_fro_obj_l = get_fro_obj(args, n_obs)
+
+                # write into the reflect template to obtain a reflection hint message
+                reflect_hint = write_refl_temp(args, env_rec[o_env_id][0], pos, obs, inv, 
+                                               o_env_id, act, fro_obj_s, 
+                                               n_env_rec[int(n_env_id)][0], n_pos, n_obs, n_inv, 
+                                               n_env_id, n_fro_obj_s, n_act_his)
+
                 # get a new experience
                 if args.static:
                     continue
+
                 else:
-                    act_his.append(act)
-                    n_exp, p_exp, c_exp = get_exp(args, text, n_text, act, act_his, exp)
+                    n_exp, p_exp, c_exp = get_exp(args, reflect_hint, exp, n_act_his)
                     with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
                         f.write(f"New experience = \n{n_exp}\n")
                         f.write(f"Past experience = \n{p_exp}\n")
@@ -892,8 +840,8 @@ if __name__ == '__main__':
                 if args.wandb:
 
                 # log everything to the wandb    
-                    scn_table.add_data(wandb.Image(img), str(obs), text_e, str(pos), act, n_exp, c_exp)
-                    rec_table.add_data(str(env_rec[int(i)][0]), str(env_rec[int(i)][1]), str(env_rec[int(i)][2]), str(pos), act, str(obj_rec[int(i)][0]), str(obj_rec[int(i)][1]))
+                    scn_table.add_data(wandb.Image(img), str(obs), act_hint, str(pos), act, n_exp, c_exp)
+                    rec_table.add_data(str(env_rec[n_env_id][0]), str(env_rec[int(n_env_id)][1]), str(env_rec[int(n_env_id)][2]), str(pos), act, str(obj_rec[int(i)][0]), str(obj_rec[int(i)][1]))
                     metrics = {
                         "env_view_ratio": env_view_r,
                         "env_intr_ratio": env_intr_r,
@@ -904,18 +852,31 @@ if __name__ == '__main__':
 
                     # Log the metrics
                     wandb.log(metrics)
-                
-                # update the records (environment & object) based on env_id, act, pos, obs, fro_obj
-                pos, env_rec, obj_rec = update_rec(args, env_rec, obj_rec, int(i), act, pos, obs, fro_obj)
+
+                # Print the report by writing into the file rpt_temp.txt
+                report_text = write_rpt_temp(args, env_rec[n_env_id][0], env_rec[n_env_id][1], env_rec[n_env_id][2], 
+                                             obj_rec[n_env_id][0], obj_rec[n_env_id][1], pos, 
+                                             env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s)
+                if args.log:
+                    print(f"***************** Records *****************\n")
+                    print(report_text)
+                write_log(f"***************** Records *****************\n")
+                write_log(report_text)
                 
                 # Update the observation into the new observation to be used by later deciding
                 obs = n_obs
+
+                # Update the record to be the new rec
+                pos, env_rec, obj_rec = n_pos, n_env_rec, n_obj_rec
 
                 # Increment the action index
                 act_idx += 1
 
                 # Update the experience into the combined experience to be used by later deciding
                 exp = c_exp
+
+        # Update the environment ID into the new one
+        o_env_id = n_env_id
 
         # Environment close() due to all steps finished      
         env.close()
