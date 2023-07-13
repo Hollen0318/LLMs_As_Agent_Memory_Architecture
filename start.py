@@ -365,7 +365,7 @@ def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
 
 # Function to update the view based on the observation
 def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
-    if x >= 0 and x <= env_rec[env_id][0].shape[0] and y >= 0 and y <= env_rec[env_id][0].shape[1]:
+    if x >= 0 and x < env_rec[env_id][0].shape[0] and y >= 0 and y < env_rec[env_id][0].shape[1]:
         if args.log:
             print(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
         write_log(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
@@ -407,7 +407,6 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
             n_pos = pos
     else:
         n_pos = pos
-
     return n_pos, n_env_rec, n_obj_rec
 
 # Function to write into the act_temp.txt to hint an action
@@ -771,7 +770,11 @@ if __name__ == '__main__':
 
         # Link the obs to the record table
         env_rec, obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, obs, pos)
-
+        if args.wandb:
+            dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+            rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
+                               str(env_rec[int(n_env_id)][2]), str(pos), dir_dic[obs['direction']],
+                               "start", str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
         # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
 
@@ -856,7 +859,7 @@ if __name__ == '__main__':
                     scn_table.add_data(wandb.Image(img), str(obs), act_hint, str(pos), act, n_exp, c_exp)
                     dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
                     rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
-                                       str(env_rec[int(n_env_id)][2]), str(pos), dir_dic[obs['direction']],
+                                       str(env_rec[int(n_env_id)][2]), str(n_pos), dir_dic[obs['direction']],
                                        act, str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
                     metrics = {
                         "env_view_ratio": env_view_r,

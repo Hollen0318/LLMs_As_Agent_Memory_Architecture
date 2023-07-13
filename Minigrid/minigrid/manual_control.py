@@ -10,6 +10,15 @@ from minigrid.core.actions import Actions
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
 
+# Get the mapping list between 0,1,2,3 and environment names in a list
+def get_env_id_mapping(args):
+    file_name = args.env_id_maps
+    id_mappings = []
+    with open(file_name, "r") as file:
+        for line in file:
+            _, env_name = line.strip().split(", ")
+            id_mappings.append(env_name)
+    return id_mappings
 
 class ManualControl:
     def __init__(
@@ -35,8 +44,8 @@ class ManualControl:
                     self.key_handler(event)
 
     def step(self, action: Actions):
-        _, reward, terminated, truncated, _ = self.env.step(action)
-        print(f"step={self.env.step_count}, reward={reward:.2f}")
+        obs, reward, terminated, truncated, _ = self.env.step(action)
+        print(f"obs img = {str(obs['image'].transpose(1,0,2))} step={self.env.step_count}, reward={reward:.2f}")
 
         if terminated:
             print("terminated!")
@@ -71,7 +80,7 @@ class ManualControl:
             "pagedown": Actions.drop,
             "tab": Actions.pickup,
             "left shift": Actions.drop,
-            "enter": Actions.done,
+            "enter": Actions.done
         }
         if key in key_to_action.keys():
             action = key_to_action[key]
@@ -82,14 +91,44 @@ class ManualControl:
 
 if __name__ == "__main__":
     import argparse
-
+    import wandb
+    from datetime import datetime
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--agent-view-size",
+        type=int,
+        default=7,
+        help="set the number of grid spaces visible in agent-view ",
+    )
     parser.add_argument(
         "--env-id",
         type=str,
         help="gym environment to load",
         choices=gym.envs.registry.keys(),
         default="MiniGrid-MultiRoom-N6-v0",
+    )
+    parser.add_argument(
+        "--env-id-maps",
+        type = str,
+        help = "the environment ID and environment name mapping",
+        default = r"C:/Users/holle/OneDrive - Duke University/LLM_As_Agent/utilities/env_id_maps.txt"
+    )
+    parser.add_argument(
+        "--envs",
+        nargs = "+",
+        help = "list of environment names, see the ./utilities/envs_mapping.txt for mapping between index and env",
+        default = ["1"]
+    )
+    parser.add_argument(
+        "--rgb-view",
+        action = "store_true",
+        help = "whether to show the environment observation by RGB array"
+    )
+    parser.add_argument(
+        "--screen-size",
+        type=int,
+        default="640",
+        help="set the resolution for pygame rendering (width and height)",
     )
     parser.add_argument(
         "--seed",
@@ -101,39 +140,42 @@ if __name__ == "__main__":
         "--tile-size", type=int, help="size at which to render tiles", default=32
     )
     parser.add_argument(
-        "--agent-view",
-        action="store_true",
-        help="draw the agent sees (partially observable view)",
+        "--prj-name",
+        type = str,
+        help = "the project name for your wandb",
+        default = "Minigrid Manaual Control As Agent"
     )
     parser.add_argument(
-        "--agent-view-size",
-        type=int,
-        default=7,
-        help="set the number of grid spaces visible in agent-view ",
+        "--wandb",
+        action = "store_true",
+        help = "whether to use wandb to record experiments"
     )
-    parser.add_argument(
-        "--screen-size",
-        type=int,
-        default="640",
-        help="set the resolution for pygame rendering (width and height)",
-    )
-
     args = parser.parse_args()
+    
+    if args.wandb:
+        wandb.init(
+            project = args.prj_name,
+            name = datetime.now().strftime("Run %Y-%m-%d %H:%M:%S"),
+            config = vars(args)
+        )
 
-    env: MiniGridEnv = gym.make(
-        args.env_id,
-        tile_size=args.tile_size,
-        render_mode="human",
-        agent_pov=args.agent_view,
-        agent_view_size=args.agent_view_size,
-        screen_size=args.screen_size,
-    )
+    envs_id_mapping = get_env_id_mapping(args)
 
-    # TODO: check if this can be removed
-    if args.agent_view:
-        print("Using agent view")
-        env = RGBImgPartialObsWrapper(env, args.tile_size)
-        env = ImgObsWrapper(env)
+    for i in args.envs:
 
-    manual_control = ManualControl(env, seed=args.seed)
-    manual_control.start()
+        env_name = envs_id_mapping[int(i)]
+        
+        env: MiniGridEnv = gym.make(
+            env_name,
+            tile_size=args.tile_size,
+            render_mode="human",
+            agent_view_size=args.agent_view_size,
+            screen_size=args.screen_size,
+        )
+
+        if args.rgb_view:
+            env = RGBImgPartialObsWrapper(env, args.tile_size)
+        # env = ImgObsWrapper(env)
+
+        manual_control = ManualControl(env, seed=args.seed)
+        manual_control.start()
