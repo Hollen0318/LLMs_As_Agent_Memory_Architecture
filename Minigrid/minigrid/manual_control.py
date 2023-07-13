@@ -5,7 +5,7 @@ from __future__ import annotations
 import gymnasium as gym
 import pygame
 from gymnasium import Env
-
+import numpy as np
 from minigrid.core.actions import Actions
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
@@ -45,7 +45,7 @@ class ManualControl:
 
     def step(self, action: Actions):
         obs, reward, terminated, truncated, _ = self.env.step(action)
-        print(f"obs img = {str(obs['image'].transpose(1,0,2))} step={self.env.step_count}, reward={reward:.2f}")
+        print(f"obs img = {str(np.rot90(obs['image'].transpose(1,0,2)[:, :, 2], k=-1))} step={self.env.step_count}, reward={reward:.2f}")
 
         if terminated:
             print("terminated!")
@@ -161,21 +161,19 @@ if __name__ == "__main__":
 
     envs_id_mapping = get_env_id_mapping(args)
 
-    for i in args.envs:
+    env_name = envs_id_mapping[int(args.envs[0])]
+    
+    env: MiniGridEnv = gym.make(
+        env_name,
+        tile_size=args.tile_size,
+        render_mode="human",
+        agent_view_size=args.agent_view_size,
+        screen_size=args.screen_size,
+    )
 
-        env_name = envs_id_mapping[int(i)]
-        
-        env: MiniGridEnv = gym.make(
-            env_name,
-            tile_size=args.tile_size,
-            render_mode="human",
-            agent_view_size=args.agent_view_size,
-            screen_size=args.screen_size,
-        )
+    if args.rgb_view:
+        env = RGBImgPartialObsWrapper(env, args.tile_size)
+    # env = ImgObsWrapper(env)
 
-        if args.rgb_view:
-            env = RGBImgPartialObsWrapper(env, args.tile_size)
-        # env = ImgObsWrapper(env)
-
-        manual_control = ManualControl(env, seed=args.seed)
-        manual_control.start()
+    manual_control = ManualControl(env, seed=args.seed)
+    manual_control.start()
