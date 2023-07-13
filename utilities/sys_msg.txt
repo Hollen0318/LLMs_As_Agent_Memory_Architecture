@@ -9,7 +9,9 @@ Observations will be composed of following items:
 
     During the exploration, you will also start to forget about the world map that you haven't explored for a little while.
 
-    3.1 Object Map
+    Example:
+
+    1.1 Object Map
 
     The numbers in the object map correspond to: {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, Yourself: →, ←, ↑, ↓}
         
@@ -25,9 +27,9 @@ Observations will be composed of following items:
     For example, a key (5) is two steps in front of you. A ball (6) is blocking you from the door (4). 
     A wall is surrounding you, ball, door and key. The objects behind you, or the door as well as wall are unseen (0). 
 
-    3.2 Color Map
+    1.2 Color Map
 
-    The numbers in the color map correspond to: {unseen: -, black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5, Yourself: *}
+    The numbers in the color map correspond to: {unseen: -, black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5, Yourself: →, ←, ↑, ↓}
 
     [[- 5 5 5 5 5 - - - - -]
      [- 0 0 0 1 1 - - - - -]
@@ -40,74 +42,33 @@ Observations will be composed of following items:
     You are standing at (2,1) facing east (→), you can see there are three green objects in the Color Map, combined with the object map you know they are green ball, key and door (1).
     The wall are all of color grey (5) and empty spaces are all of color black (0). The objects behind yourself, door and wall are unseen (-).  
 
-    3.3. Status Map
+    1.3. Status Map
 
-    
+    The numbers in the status map correspond to: {unseen: -, open: 0, closed: 1, locked: 2, Yourself: →, ←, ↑, ↓}
 
-2. Direction:
+    [[- 0 0 0 0 0 - - - - -]
+     [- 0 0 0 0 2 - - - - -]
+     [- → 0 0 0 0 - - - - -]
+     [- 0 0 0 0 0 - - - - -]
+     [- 0 0 0 0 0 - - - - -]
+     [- 0 0 0 0 0 - - - - -]]
 
-    It's where you are facing (north, east, west, south). 
+    Interpretation: 
+    You are standing at (2,1) facing east (→), you can see there is locked object, combined with the previous observations, you can tell that is a locked green door.
 
-    An example:
-    You are facing north.
+2. Inventory
 
-    Interpretation:
-    You are facing north which is the up direction in the world map, and east is the right, west is the left and south is the down.
+    You can only hold one item with you. 
 
+    Example:
 
-3. Position in World Exploration Map:
-
-    Represented by a tuple, where the two digits are (row, column) index corresponding to the World Map.
-
-    An example:
-    (2,1)
-
-    Interpretation:
-    Your world position is (2,1) which is at the third row, second column of the world map (beacuse the index starts at 0).
-    Combined with previous World Exploration Map and Direction, you can tell that you are standing at the (2,1), facing east showing a 3 by 3 area in front of you. 
-
-4. Observations on surroundings:
-
-    Because you will have a limited observation ability, 
-    your surroudnings are representted by a square size matrix (size could be 3, 5, 7), where each object is encoded by three digit numbers.
-    First digit represents the object name, where {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, Yourself: 10}
-    Second digit represents the object color, where {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
-    Third digit represents the object status, where {open: 0, closed: 1, locked: 2}
-
-    An example:
-    A 3 by 3 observation will be:
-    [[[6, 1, 0], [5, 1, 0], [1, 0, 0]], 
-    [[1, 0, 0], [1, 0, 0], [1, 0, 0]],
-    [[1, 0, 0], [10, 0, 0], [1, 0, 0]]].
-
+    You are holding nothing.
 
     Interpretation:
-    So a object key, color green, status open is two steps in front of you. If you want to reach it, you should call the function "choose_act" with action parameter being "forward", then call function with action parameter being "pick up".
+    If you are not holding anything, you can pick up object by calling "choose_act" with parameter being "pick up", otherwise, you must use call with "drop off" to a empty space in order to pick up something else.
+3. Past actions:
 
-5. Inventory Status:
-
-    0 means you are holding nothing, and other numbers are what object you are holding, for example 5 means you are holding a key corresponding to the object number mentioned above.
-
-    An example:
-    6
-
-    Interpretation:
-    Because you can only hold one inventory, so if something is blocking you, you should use "choose_act" with action parameter being "pick up" and then turn to other directions like "left" or "right", then use "drop off" as parameter drop it in order to clean your path.
-    For example, now your inventory status is 6, means you are holding a ball, and if you want to pick up something else like a key (5), you need to use "choose_act" with action parameter being "drop off", to make your inventory status 0 again.
-
-6. Environment ID:
-
-    The ID for you to distinguish different environments, because some experience may not be useful anymore in the new environment.
-
-    An example:
-    This is Environment # 0
-
-    Interpretation:
-    You are inside the environment number 0.
-
-7. Past actions:
-
-    You can see your past actions, try using diverse actions as they help to explore the world. 
+    You can remember your latest {} past actions, try using diverse actions as they help to explore the world. 
 
     An example:
     Your past actions are forward, forward
@@ -115,28 +76,14 @@ Observations will be composed of following items:
     Interpretation:
     You have tried forward two times.
 
-8. Gained experience:
+4. Gained experience:
 
     You can refer to your gained past experiences to guide you to explore the world. 
 
     An example:
-    a. I have observed a ball (6) and a key (5) in front of me in both the old and new experiences.
-    b. In my previous action, I attempted to pick up the ball but was unsuccessful.
-    c. The feedback from the previous action indicated that I couldn't pick up the ball, suggesting it may be too far away or not pickable.
-    d. I have been moving forward in my previous actions to explore the world.
-    e. My inventory status is currently 0, meaning I am not holding any objects.
-
+    a. I have observed a ball (6) and a key (5) in front of me.
+ 
     Interpretation:
     You have the above experience to guide yourself to explore the world as much as you can.
 
-9. Front object:
-    
-    You can only interact with object right in front of you, so be careful about what your front object is, unsuccessful pick up could indicate distance is too far or object is not pickable.
-
-    An example:
-    5 1 0 [Key Green Open]
-
-    Interpretation:
-    There is object that's Key Green Open in front of you, if your inventory status is 0, you can pick it up by calling "choose_act" with parameter being "pick up".  
-
-Remember all these introductions are just for your references, your real observation will be provided to you later with similar format
+Remember all these examples are just for your references, your real observation will be provided to you later with similar format
