@@ -471,7 +471,7 @@ def update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow,
         # 0. Deduct the env_memo_rec by 1 unless 0
         env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
         # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
-        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec[env_id].shape[0], pos_x + args.view // 2)):
+        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec[env_id].shape[0], pos_x + args.view // 2 + 1)):
             for col in range(pos_y, min(env_view_rec[env_id].shape[1], pos_y + args.view)):
                 # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
                 obj_name = rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y]
@@ -502,8 +502,8 @@ def update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow,
         # 0. Deduct the env_memo_rec by 1 unless 0
         env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
         # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
-        for row in range(max(0, pos_x - args.view), pos_x):
-            for col in range(max(0, pos_y - args.view // 2), min(env_view_rec[env_id].shape[1], pos_y + args.view // 2)):
+        for row in range(max(0, pos_x - args.view + 1), pos_x):
+            for col in range(max(0, pos_y - args.view // 2), min(env_view_rec[env_id].shape[1], pos_y + args.view // 2 + 1)):
                 # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
                 obj_name = rotated_image_obj[row - (pos_x - args.view + 1)][col - (pos_y - args.view // 2)]
                 col_name = rotated_image_col[row - (pos_x - args.view + 1)][col - (pos_y - args.view // 2)]
@@ -527,13 +527,13 @@ def update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow,
         # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
         # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
         image = obs['image'].transpose(1,0,2)
-        rotated_image_obj = np.rot90(image[:, :, 0], k = -1)
-        rotated_image_col = np.rot90(image[:, :, 1], k = -1)
-        rotated_image_sta = np.rot90(image[:, :, 2], k = -1)
+        rotated_image_obj = np.rot90(image[:, :, 0], k = -2)
+        rotated_image_col = np.rot90(image[:, :, 1], k = -2)
+        rotated_image_sta = np.rot90(image[:, :, 2], k = -2)
         # 0. Deduct the env_memo_rec by 1 unless 0
         env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
         # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
-        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec[env_id].shape[0], pos_x + args.view // 2)):
+        for row in range(pos_x, min(env_view_rec[env_id].shape[0], pos_x + args.view)):
             for col in range(pos_y, min(env_view_rec[env_id].shape[1], pos_y + args.view // 2)):
                 # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
                 obj_name = rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y]
