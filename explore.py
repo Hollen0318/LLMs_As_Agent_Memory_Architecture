@@ -800,7 +800,15 @@ if __name__ == '__main__':
             act_hint = act_hint_gen(args, world_map)
             # We get the action from the act_hint, the act is a string format like "pick up"
             act = get_action(act_hint)
-            # With the new act
+            # With the new act, we convert it into the actions object
+            # New act will affect many things:
+            # 1. Inventory Status: can be read from the new obs and past obs, comparing whether the front object has 
+            # disappeared (into empty), if yes, make the disappeared object as current inventory; or whether the front object
+            # has changed into something else, then restore the inventory status as nothing. 
+            # 2. World Map: world map is composed of object, color and status. It can be read from the obs directly so it won't be a problem
+            # 3. env view record: env view record documents the many of times agent has seen objects, it can be updated using the new obs
+            # 4. obj view record
+            # 5. action history: we can directly append the new action into the action history list
             # get five ratios measuring the exploration ratio
             env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s = get_ratios(args, int(n_env_id), env_rec, obj_rec)
 
