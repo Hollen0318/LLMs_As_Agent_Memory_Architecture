@@ -120,6 +120,23 @@ def get_action(args, text):
                 retry_delay *= 2  # double the delay each time we retry
     return act_obj_pair[act]
 
+def get_action(args, env_id, act_idx, world_map, env_view_rec, env_memo_rec, obj_intr_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs):
+    if args.input:
+        # A demo action when using input
+        return "forward"
+    else:
+        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
+        with open(args.sys_msg, 'r') as file:
+            sys_temp = file.read()
+        
+        sys_msg = sys_temp.format(str(args.refresh))
+        # Then we need the observation message, which we will fill the act_temp.txt
+        with open(args.act_temp, 'r') as file:
+            act_temp = file.read()
+        # 1. We need the world map in object level, which we should initialize using pos_x, pos_y, arrow, obs, world_map, env_memo_rec
+        update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_memo_rec, env_view_rec, obj_view_rec)
+        act_mgs = act_temp.format()
+
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_id_mapping(args):
     file_name = args.env_id_maps
@@ -256,8 +273,8 @@ def get_pos_m(args):
     # parse the data and create matrices
     pos_m = {}
     for line in lines:
-        env_id, x, y, arrow = line.strip().split(',')
-        pos_m[env_id] = (int(x), int(y), arrow)
+        env_id, x, y, arrow = line.strip().split(', ')
+        pos_m[int(env_id)] = (int(x), int(y), arrow)
 
     return pos_m
 
@@ -303,16 +320,18 @@ def get_rec(args):
 
     # parse the data and create matrices
     env_view_rec = {}
+    env_memo_rec = {}
     obj_intr_rec = {}
     obj_view_rec = {}
 
     for line in lines:
         env_id, h, w = map(int, line.strip().split(','))
         env_view_rec[env_id] = np.zeros((h, w))
+        env_memo_rec[env_id] = np.zeros((h, w))
         obj_intr_rec[env_id] = np.array([[0 for i in range(11)] for j in range(3)])
         obj_view_rec[env_id] = np.array([0 for i in range(11)])
 
-    return env_view_rec, obj_intr_rec, obj_view_rec
+    return env_view_rec, env_memo_rec, obj_intr_rec, obj_view_rec
 
 # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
 def get_world_maps(args):
@@ -325,7 +344,7 @@ def get_world_maps(args):
         env_id, h, w = map(int, line.strip().split(','))
         world_map[env_id] = np.empty((3, h, w), dtype = str)    
         # the three dimensions will be object, color and status, we intiialize them seperately now 
-        world_map[env_id][0] = np.full((h, w), "0", dtype = str)
+        world_map[env_id][0] = np.full((h, w), "-", dtype = str)
         world_map[env_id][1] = np.full((h, w), "-", dtype = str)
         world_map[env_id][2] = np.full((h, w), "-", dtype = str)
 
@@ -437,6 +456,39 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
     else:
         n_pos = pos
     return n_pos, n_env_rec, n_obj_rec
+
+# 1. We need to update the world map in object level, which we should initialize using pos_x, pos_y, arrow, obs, world_map, env_memo_rec
+def update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_memo_rec, env_view_rec, obj_view_rec):
+    # With the new obs, we should first update the env_memo_rec, as it will determine which parts of world map will show
+    if arrow == "→":
+        # It means the agent is facing right, so we update the env_memo_rec accordingly, specifically we 
+        # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
+        # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
+        image = obs['image'].transpose(1,0,2)
+        rotated_image_obj = np.rot90(image[:, :, 0], k = -1)
+        rotated_image_col = np.rot90(image[:, :, 1], k = -1)
+        rotated_image_sta = np.rot90(image[:, :, 2], k = -1)
+        # 0. Deduct the env_memo_rec by 1 unless 0
+        env_memo_rec[env_id] = np.where(env_memo_rec[env_id] != 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
+        # 1. Update the env_view_rec
+
+        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec.shape[0], pos_x + args.view // 2)):
+            for col in range(pos_y, min(env_view_rec.shape[1], pos_y + args.view // 2)):
+                # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
+                if rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y] != 0:
+                    env_memo_rec[env_id][row][col] = args.memo
+                    env_view_rec[env_id][row][col] += 1
+                obj_view_rec[env_id][rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y]] += 1
+                    
+
+
+                         
+    elif arrow == "↑":
+
+    elif arrow == "↓":
+
+    elif arrow == "←":
+
 
 # Function to write into the act_temp.txt to hint an action
 def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp, fro_obj_l):
@@ -620,6 +672,12 @@ if __name__ == '__main__':
         help = "the location to load your reflect prompt message template"
     )
     parser.add_argument(
+        "--refresh",
+        type = int,
+        default = 20,
+        help = "the longest number of actionn historys"
+    )
+    parser.add_argument(
         "--rpt-temp",
         default = "./utilities/rpt_temp.txt",
         type = str,
@@ -684,12 +742,6 @@ if __name__ == '__main__':
         help = "whether to use wandb to record experiments"
     )
     parser.add_argument(
-        "--refresh",
-        type = int,
-        default = 20,
-        help = "the longest number of actionn historys"
-    )
-    parser.add_argument(
         "--forget-t",
         type = int,
         default = 10,
@@ -745,7 +797,7 @@ if __name__ == '__main__':
     # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
     world_map = get_world_maps(args)
     # Get the two record matrix for all environments, with environment and object level
-    env_view_rec, obj_intr_rec, obj_view_rec = get_rec(args)
+    env_view_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(args)
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
     # Get the position mapping for all environments, which include the x, y (in integer) and the direction → string
@@ -790,7 +842,8 @@ if __name__ == '__main__':
         
         # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
-
+            # We get a new action using all values
+            act = get_action(args, env_id, act_idx, world_map, env_view_rec, obj_intr_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs)
             # Link the obs to the record table, i.e. we record what agent's has seen in environment view and object view level
             env_view_rec, obj_view_rec = update_rec(args, obs, env_view_rec, obj_view_rec)
             # With the environment record, and observation, we update the world map, we include env_view_rec 

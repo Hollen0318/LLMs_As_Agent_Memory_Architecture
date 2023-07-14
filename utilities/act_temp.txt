@@ -1,37 +1,27 @@
-1. World Exploration Map:
+1. World Map
 
-    {}
-
-2. Position in World Exploration Map:
-
-    {}
-
-3. Direction:
-
-    You are facing {}
-
-4. Observations on surroundings:
-
-    {}
-
-5. Inventory Status:
-
-    Your inventory status is {}
-
-6. Environment ID:
-
-    This is Environment # {}
-
-7. Past actions:
-
-    Your past actions are {}
-
-8. Gained experience:
-
-    {}
-
-9. Front object:
+    1.1 Object Map
     
+    {}
+    
+    1.2 Color Map
+
+    {}
+
+    1.3. Status Map
+
+    {}
+
+2. Inventory
+
+    {}
+
+3. Past actions:
+
+    {}
+
+4. Gained experience:
+
     {}
 
 Choose your action using an integer from 0 - 5 (integer only): 
