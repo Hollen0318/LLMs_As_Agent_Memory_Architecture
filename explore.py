@@ -792,10 +792,10 @@ if __name__ == '__main__':
         for j in range(args.steps):
 
             # Link the obs to the record table, i.e. we record what agent's has seen in environment view and object view level
-            update_rec(args, obs, env_view_rec, obj_view_rec)
+            env_view_rec, obj_view_rec = update_rec(args, obs, env_view_rec, obj_view_rec)
             # With the environment record, and observation, we update the world map, we include env_view_rec 
             # because it will be used to determine which areas are forgotten 
-            update_world_map(args, obs, world_map, env_view_rec)    
+            world_map = update_world_map(args, obs, world_map, env_view_rec)    
             # With new world map, we can then generate the texts based on the world map.
             act_hint = act_hint_gen(args, world_map)
             # We get the action from the act_hint, the act is a string format like "pick up"
@@ -805,10 +805,20 @@ if __name__ == '__main__':
             # 1. Inventory Status: can be read from the new obs and past obs, comparing whether the front object has 
             # disappeared (into empty), if yes, make the disappeared object as current inventory; or whether the front object
             # has changed into something else, then restore the inventory status as nothing. 
-            # 2. World Map: world map is composed of object, color and status. It can be read from the obs directly so it won't be a problem
-            # 3. env view record: env view record documents the many of times agent has seen objects, it can be updated using the new obs
-            # 4. obj view record
-            # 5. action history: we can directly append the new action into the action history list
+            # 2. World Map *: world map is composed of object, color and status. It needs the new obs in combination of the past position, action, we need to figure out where the agent will be after the action
+            # 3. env view record: env view record documents the total many of times agent has seen in the environment, it can be updated using the updated world map or new obs with new position to exclude the agent from updating the data
+            # 4. obj view record: obj view record documents the total many of times agent has seen objects, this can be updated directly from the updated world map or new obs with new position to exclude the agent from updating the data
+            # 5. obj intr record *: obj intr record documents the total many of times agent has been interacting with the object, this needs combination of the action and the front object, which could be read from the past observation or the old world map. 
+            # 6. action history: we can directly append the new action into the action history list
+            
+            # Take the action returned either by api or user
+            n_obs, reward, terminated, truncated, _ = env.step(act_obj)
+            
+            # 1. Get the new inventory status, doing this needs the world map and access it by using agent's initial position plus one in its corresponding direction
+            inv = update_inv(args, n_obs, world_map, pos_x, pos_y, arrow)
+
+            # 2. Update the world map
+            world_map = update_world_map(args, obs, )
             # get five ratios measuring the exploration ratio
             env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s = get_ratios(args, int(n_env_id), env_rec, obj_rec)
 
