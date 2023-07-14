@@ -285,21 +285,34 @@ def get_ratios(args, env_id, env_rec, obj_rec):
     
     return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s
 
-# Function to get the env, dimension, height, width 4-dimensional matrix, used for calculating exploration rate
+# The environment matrix records how many times an agent has seen a portion of object,
+# For example, if the agent has seen the object at (1,1), then it will be incremented by 1, with all other places being decreased by 1
+# We use this to record and update the world map as agent can remember and forget
+# We will set up a memory threshold that how long can an agent remember, with 0 means agent immediately forgets everything once look away
+# and 10 means agent remember last 10 action's observations
+
+# The object interact matrix records how many times an agent has interacted with each object, with what interaction
+# So it will have a shape of (10, 3), which is recording all three types of interaction for all objects
+
+# The object view matrix records how many times an agent has seen each object
+# So it will have a shape of only (10, ) which is recording total number of times agent has seen all objects
 def get_rec(args):
     # read data from txt file
     with open(args.env_sizes, 'r') as f:
         lines = f.readlines()
 
     # parse the data and create matrices
-    env_rec = {}
-    obj_rec = {}
+    env_view_rec = {}
+    obj_intr_rec = {}
+    obj_view_rec = {}
+
     for line in lines:
         env_id, h, w = map(int, line.strip().split(','))
-        env_rec[env_id] = np.zeros((3, h, w))
-        obj_rec[env_id] = np.array([[0 for i in range(11)] for j in range(2)])
+        env_view_rec[env_id] = np.zeros((h, w))
+        obj_intr_rec[env_id] = np.array([[0 for i in range(11)] for j in range(3)])
+        obj_view_rec[env_id] = np.array([0 for i in range(11)])
 
-    return env_rec, obj_rec
+    return env_view_rec, obj_intr_rec, obj_view_rec
 
 # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
 def get_world_maps(args):
@@ -589,6 +602,12 @@ if __name__ == '__main__':
         help = "print the logging informations by print()"
     )
     parser.add_argument(
+        "--memo",
+        type = int,
+        help = "how long can agent remember past scenes",
+        default = 0
+    )
+    parser.add_argument(
         "--prj-name",
         type = str,
         help = "the project name for your wandb",
@@ -725,9 +744,12 @@ if __name__ == '__main__':
 
     # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
     world_map = get_world_maps(args)
+    # Get the two record matrix for all environments, with environment and object level
+    env_view_rec, obj_intr_rec, obj_view_rec = get_rec(args)
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
-
+    # Get the position mapping for all environments, which include the x, y (in integer) and the direction → string
+    pos_m = get_pos_m(args)
     # Iterate over all the environment
     for i in args.envs:
         # For every new environment, the inventory is always 0 (empty)
@@ -735,6 +757,11 @@ if __name__ == '__main__':
         env_id = int(i)
         # For each new environment, the inventory is always 0
         inv = 0
+        # For every new environment, the action history is always 0 (empty)
+        act_his = []
+        # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
+        pos_x, pos_y, arrow = pos_m[env_id]
+        # Get environment name from the mapping
         env_name = envs_id_mapping[env_id]
         if args.log:
             print(f"Loading environment = {env_name}")
@@ -751,25 +778,29 @@ if __name__ == '__main__':
             scn_table = wandb.Table(columns = ["img", "text", "act", "n_exp", "c_exp"])
             rec_table = wandb.Table(columns = ["env_view", "env_step", "pos", "dir", "act", "obj_view", "obj_intr"])
         
-        # For every new environment, the action history is always 0 (empty)
-        act_his = []
-
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
 
-        # Get the respawn position for seed = 23 only
-        pos = pos_m[int(i)]
-
-        # Link the obs to the record table
-        env_rec, obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, obs, pos)
-        if args.wandb:
-            dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-            rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
-                               str(env_rec[int(n_env_id)][2]), str(pos), dir_dic[obs['direction']],
-                               "start", str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
+        # env_rec, obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, obs, pos)
+        # if args.wandb:
+        #     dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+        #     rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
+        #                        str(env_rec[int(n_env_id)][2]), str(pos), dir_dic[obs['direction']],
+        #                        "start", str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
+        
         # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
 
+            # Link the obs to the record table, i.e. we record what agent's has seen in environment view and object view level
+            update_rec(args, obs, env_view_rec, obj_view_rec)
+            # With the environment record, and observation, we update the world map, we include env_view_rec 
+            # because it will be used to determine which areas are forgotten 
+            update_world_map(args, obs, world_map, env_view_rec)    
+            # With new world map, we can then generate the texts based on the world map.
+            act_hint = act_hint_gen(args, world_map)
+            # We get the action from the act_hint, the act is a string format like "pick up"
+            act = get_action(act_hint)
+            # With the new act
             # get five ratios measuring the exploration ratio
             env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s = get_ratios(args, int(n_env_id), env_rec, obj_rec)
 
