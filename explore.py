@@ -53,41 +53,42 @@ def describe_location(diff_x, diff_y):
         description += f" and {abs(diff_x)} step(s) to your right"
     return description
 
-# Function called by the OpenAI API to choose an action
-def get_action(args, text):
-    if args.log:
-        print(f"\n################## Starting Deciding ##################\n")
-        print(f"Prompt Message =\n\n{text}\n")
-    write_log(f"\n################## Starting Deciding ##################\n")
-    write_log(f"Prompt Message =\n\n{text}\n")
+
+def get_action(args, env_id, world_map, env_view_rec, env_memo_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs, exp):
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
-        if args.log:
-            print(f"{open(args.sys_msg).read()}")
-            print(f"{text}")
-            print(f"{open(args.fuc_msg).read()}\n")
-        write_log(f"{open(args.sys_msg).read()}")
-        write_log(f"{text}")
-        write_log(f"{open(args.fuc_msg).read()}\n")
-        valid = [str(i) for i in range(6)]
-        while True:
-            act = input("") 
-            if act in valid:
-                break
-            else:
-                continue
+        # A demo action when using input
+        return "forward"
     else:
+        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
+        with open(args.sys_msg, 'r') as file:
+            sys_temp = file.read()
+        
+        sys_msg = sys_temp.format(str(args.refresh))
+        # Then we need the observation message, which we will fill the act_temp.txt
+        with open(args.act_temp, 'r') as file:
+            act_temp = file.read()
+        # 1. We need the world map in object level, which we should initialize using pos_x, pos_y, arrow, obs, world_map, env_memo_rec
+        update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_memo_rec, env_view_rec, obj_view_rec)
+        obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
+        col_map_s = np.array2string(world_map[env_id][1]).replace("'", "").replace("\"","")
+        sta_map_s = np.array2string(world_map[env_id][2]).replace("'", "").replace("\"","")
+        obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
+        if inv == 0:
+            inv_s = f"You are not holding anything"
+        else:
+            inv_s = f"You are holding a {obj_idx[inv]}"
+        act_his_s = ", ".join(act_his)
+        act_msg = act_temp.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp)
         valid = [i for i in range(6)]
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
-        sys_msg = open(args.sys_msg).read()
         if args.goal:
             sys_msg += "\nYou will be prompted a goal specific to the environment.\n"
         msg = [{"role": "system", "content": sys_msg}]
         fuc_msg = open(args.fuc_msg).read()
         fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
-        usr_msg = text     
-        msg.append({"role": "user", "content": usr_msg})
+        msg.append({"role": "user", "content": act_msg})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -119,23 +120,6 @@ def get_action(args, text):
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
     return act_obj_pair[act]
-
-def get_action(args, env_id, act_idx, world_map, env_view_rec, env_memo_rec, obj_intr_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs):
-    if args.input:
-        # A demo action when using input
-        return "forward"
-    else:
-        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
-        with open(args.sys_msg, 'r') as file:
-            sys_temp = file.read()
-        
-        sys_msg = sys_temp.format(str(args.refresh))
-        # Then we need the observation message, which we will fill the act_temp.txt
-        with open(args.act_temp, 'r') as file:
-            act_temp = file.read()
-        # 1. We need the world map in object level, which we should initialize using pos_x, pos_y, arrow, obs, world_map, env_memo_rec
-        update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_memo_rec, env_view_rec, obj_view_rec)
-        act_mgs = act_temp.format()
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_id_mapping(args):
@@ -558,9 +542,9 @@ def update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow,
         # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
         # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
         image = obs['image'].transpose(1,0,2)
-        rotated_image_obj = np.rot90(image[:, :, 0], k = -1)
-        rotated_image_col = np.rot90(image[:, :, 1], k = -1)
-        rotated_image_sta = np.rot90(image[:, :, 2], k = -1)
+        rotated_image_obj = np.rot90(image[:, :, 0], k = 1)
+        rotated_image_col = np.rot90(image[:, :, 1], k = 1)
+        rotated_image_sta = np.rot90(image[:, :, 2], k = 1)
         # 0. Deduct the env_memo_rec by 1 unless 0
         env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
         # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
@@ -938,17 +922,23 @@ if __name__ == '__main__':
         # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
             # We get a new action using all values
-            act = get_action(args, env_id, act_idx, world_map, env_view_rec, obj_intr_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs)
-            # Link the obs to the record table, i.e. we record what agent's has seen in environment view and object view level
-            env_view_rec, obj_view_rec = update_rec(args, obs, env_view_rec, obj_view_rec)
-            # With the environment record, and observation, we update the world map, we include env_view_rec 
-            # because it will be used to determine which areas are forgotten 
-            world_map = update_world_map(args, obs, world_map, env_view_rec)    
-            # With new world map, we can then generate the texts based on the world map.
-            act_hint = act_hint_gen(args, world_map)
+            act = get_action(args, env_id, world_map, env_view_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs, exp)
             # We get the action from the act_hint, the act is a string format like "pick up"
-            act = get_action(act_hint)
             # With the new act, we convert it into the actions object
+            if act == "left":
+                # We update the world map, env view, env memo, obj_view, act history, arrow
+                arrow = left_arrow(args, arrow)
+                world_map = left_world_map(args, world_map, ) 
+            elif act == "right":
+
+            elif act == "forward":
+
+            elif act == "toggle":
+
+            elif act == "drop off":
+
+            elif act == "pick up":
+
             # New act will affect many things:
             # 1. Inventory Status: can be read from the new obs and past obs, comparing whether the front object has 
             # disappeared (into empty), if yes, make the disappeared object as current inventory; or whether the front object
