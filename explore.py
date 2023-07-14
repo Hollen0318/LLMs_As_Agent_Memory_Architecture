@@ -285,6 +285,18 @@ def get_ratios(args, env_id, env_rec, obj_rec):
     
     return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s
 
+# Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
+def get_world_maps(args):
+    with open(args.env_sizes, 'r') as f:
+        lines = f.readlines()
+
+    # parse the data and create world maps
+    world_map = {}
+    for line in lines:
+        env_id, h, w = map(int, line.strip().split(','))
+        world_map[env_id] = np.zeros((3, h, w), )
+    # the three dimensions will be object, color and status 
+
 # Function to get the env, dimension, height, width 4-dimensional matrix, used for calculating exploration rate
 def get_rec(args):
     # read data from txt file
@@ -689,4 +701,213 @@ if __name__ == '__main__':
     # Initial Experience
         exp = ""
 
+    # Load the API key
+    openai.api_key = open(args.API_key).read()
+
+    if args.wandb:
+        wandb.init(
+            project = args.prj_name,
+            name = datetime.now().strftime("Run %Y-%m-%d %H:%M:%S"),
+            config = vars(args)
+        )
     
+    # index to record the action & label the image
+    act_idx = 0
+
+    # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
+    if args.all:
+        args.envs = [str(i) for i in range(61)]
+    if args.log:
+        print(f"\n################## System Message ##################\n")
+        print(f"{open(args.sys_msg).read()}")    
+    write_log(f"{open(args.sys_msg).read()}")
+    write_log(f"\n################## System Message ##################\n")
+
+    # Load the environment size txt, and create a env_id, channel, height, width 4-dimensional 
+    # env_rec to record the exploration with environment, and channel, height, width 3-dimensional 
+    # list to track the object exploration record. three channels are view, toggle
+    env_rec, obj_rec = get_rec(args)
+    pos_m = get_pos_m(args)
+
+    # The environment ID and enviornment name mapping list
+    envs_id_mapping = get_env_id_mapping(args)
+
+    # Iterate over all the environment
+    for i in args.envs:
+        # For every new environment, the inventory is always 0 (empty)
+        # The i is a string representing environment ID, e.g. "1"
+        env_id = int(i)
+        # For each new environment, the inventory is always 0
+        inv = 0
+        env_name = envs_id_mapping[int(n_env_id)]
+        if args.log:
+            print(f"Loading environment = {env_name}")
+        write_log(f"Loading environment = {env_name}")
+
+        env: MiniGridEnv = gym.make(
+            id = env_name,
+            render_mode = "human" if args.disp else "rgb_array",
+            agent_view_size = args.view,
+            screen_size = args.screen
+        )
+
+        if args.wandb:
+            scn_table = wandb.Table(columns = ["img", "obs", "text", "pos", "act", "n_exp", "c_exp"])
+            rec_table = wandb.Table(columns = ["env_view", "env_intr", "env_step", "pos", "dir", "act", "obj_view", "obj_intr"])
+        
+        # For every new environment, the action history is always 0 (empty)
+        act_his = []
+
+        # Initilize the environment
+        obs, state = env.reset(seed=args.seed)
+
+        # Get the respawn position for seed = 23 only
+        pos = pos_m[int(i)]
+
+        # Link the obs to the record table
+        env_rec, obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, obs, pos)
+        if args.wandb:
+            dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+            rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
+                               str(env_rec[int(n_env_id)][2]), str(pos), dir_dic[obs['direction']],
+                               "start", str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
+        # Iterate the agent exploration within the limit of args.steps
+        for j in range(args.steps):
+
+            # get five ratios measuring the exploration ratio
+            env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s = get_ratios(args, int(n_env_id), env_rec, obj_rec)
+
+            # We refresh the action history every args.refresh run to avoid too large action space
+            if len(act_his) >= args.refresh:
+                act_his = act_his[1:]
+
+            # gain the fro_obj
+            fro_obj_s, fro_obj_l = get_fro_obj(args, obs)
+
+            # write into the act template to obtain a action hint message
+            act_hint = write_act_temp(args, env_rec[int(n_env_id)][0], pos, obs, inv, int(n_env_id), act_his, exp, fro_obj_l)
+
+            # get an action in text e.g. forward, pick up
+            act = get_action(args, act_hint)
+
+            if args.log:
+                print(f"***************** Gained Action *****************\n")
+                print(f"You have choose to do \"{act}\"")
+            write_log(f"***************** Gained Action *****************\n")
+            write_log(f"You have choose to do \"{act}\"")
+
+            # using the action to determine the new inventory and MiniGrid action object
+            n_inv, act_obj = cvt_act(args, inv, act, fro_obj_l)
+
+            if args.disp:
+                scn = pyautogui.screenshot()
+                scn.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
+            else:
+                # make a screenshot on the gym
+                img_array = env.render()
+                img = Image.fromarray(img_array)
+                img.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
+
+            # take the action returned either by api or user
+            n_obs, reward, terminated, truncated, _ = env.step(act_obj)
+
+            if terminated:
+
+                # We restart current environment if terminated like stepping into the lava or finish the goal
+                act_his = []
+
+                # TODO Add the termination process
+                # Get the respawn position
+
+                pos = pos_m[int(i)]
+
+            else:
+                # get the new act_his list
+                n_act_his = act_his.copy()
+                n_act_his.append(act)
+                # get the new fro_obj
+                n_fro_obj_s, n_fro_obj_l = get_fro_obj(args, n_obs)
+
+                # We want the old observation and new observation to generate experience
+                n_pos, n_env_rec, n_obj_rec = update_rec(args, env_rec, obj_rec, int(n_env_id), act, pos, n_obs, fro_obj_l)
+                n_env_rec, n_obj_rec = link_rec_obs(args, int(n_env_id), n_env_rec, n_obj_rec, n_obs, n_pos)
+
+                # write into the reflect template to obtain a reflection hint message
+                reflect_hint = write_refl_temp(args, env_rec[o_env_id][0], pos, obs, inv, 
+                                               o_env_id, act, fro_obj_s, 
+                                               n_env_rec[int(n_env_id)][0], n_pos, n_obs, n_inv, 
+                                               n_env_id, n_fro_obj_s, n_act_his)
+
+                # get a new experience
+                if args.static:
+                    continue
+
+                else:
+                    n_exp, p_exp, c_exp = get_exp(args, reflect_hint, exp, n_act_his)
+                    with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
+                        f.write(f"New experience:\n\n{n_exp}\n")
+                        f.write(f"\nPast experience:\n\n{p_exp}\n")
+                        f.write(f"Summarized experiene:\n\n{c_exp}\n")
+
+                if args.wandb:
+
+                # log everything to the wandb    
+                    scn_table.add_data(wandb.Image(img), str(obs), act_hint, str(pos), act, n_exp, c_exp)
+                    dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
+                    rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
+                                       str(env_rec[int(n_env_id)][2]), str(n_pos), dir_dic[obs['direction']],
+                                       act, str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
+                    metrics = {
+                        "env_view_ratio": env_view_r,
+                        "env_intr_ratio": env_intr_r,
+                        "env_step_ratio": env_step_r,
+                        "obj_view_ratio": obj_view_r,
+                        "obj_intr_ratio": obj_intr_r
+                    }
+
+                    # Log the metrics
+                    wandb.log(metrics)
+
+                # Print the report by writing into the file rpt_temp.txt
+                report_text = write_rpt_temp(args, env_rec[int(n_env_id)][0], env_rec[int(n_env_id)][1], env_rec[int(n_env_id)][2], 
+                                             obj_rec[int(n_env_id)][0], obj_rec[int(n_env_id)][1], pos, 
+                                             env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s)
+                
+                # Print the records and write them to the log files
+                if args.log:
+                    print(f"\n***************** Records *****************\n")
+                    print(f"{report_text}\n")
+                write_log(f"\n***************** Records *****************\n")
+                write_log(f"{report_text}\n")
+                
+                # Update the observation into the new observation to be used by later deciding
+                obs = n_obs
+                
+                # Update the record to be the new rec
+                # update the env & obj record matrix 
+                pos, env_rec, obj_rec = n_pos, n_env_rec, n_obj_rec
+
+                # Increment the action index
+                act_idx += 1
+
+                # Update the experience into the combined experience to be used by later deciding
+                exp = c_exp
+
+                # Update the inv to be the n_inv
+                inv = n_inv
+
+                # Update the act history to the n_act_his
+                act_his = n_act_his.copy()
+
+        # Update the environment ID into the new one
+        o_env_id = n_env_id
+
+        # Environment close() due to all steps finished      
+        env.close()
+
+        # Log datas to the wandb
+        if args.wandb:
+            wandb.log({f"Table/Screenshot for Environment #{i}": scn_table})
+            wandb.log({f"Table/Record for Environment #{i}": rec_table})
+            
+    wandb.finish()

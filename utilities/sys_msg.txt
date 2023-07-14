@@ -66,6 +66,7 @@ Observations will be composed of following items:
 
     Interpretation:
     If you are not holding anything, you can pick up object by calling "choose_act" with parameter being "pick up", otherwise, you must use call with "drop off" to a empty space in order to pick up something else.
+
 3. Past actions:
 
     You can remember your latest {} past actions, try using diverse actions as they help to explore the world. 
@@ -86,4 +87,4 @@ Observations will be composed of following items:
     Interpretation:
     You have the above experience to guide yourself to explore the world as much as you can.
 
-Remember all these examples are just for your references, your real observation will be provided to you later with similar format
+Remember all these examples are just for your references, your real observation will be provided to you later with similar format.
