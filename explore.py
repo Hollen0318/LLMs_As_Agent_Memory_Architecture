@@ -256,8 +256,8 @@ def get_pos_m(args):
     # parse the data and create matrices
     pos_m = {}
     for line in lines:
-        env_id, x, y = map(int, line.strip().split(','))
-        pos_m[env_id] = (x, y)
+        env_id, x, y, arrow = line.strip().split(',')
+        pos_m[env_id] = (int(x), int(y), arrow)
 
     return pos_m
 
@@ -285,18 +285,6 @@ def get_ratios(args, env_id, env_rec, obj_rec):
     
     return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s
 
-# Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
-def get_world_maps(args):
-    with open(args.env_sizes, 'r') as f:
-        lines = f.readlines()
-
-    # parse the data and create world maps
-    world_map = {}
-    for line in lines:
-        env_id, h, w = map(int, line.strip().split(','))
-        world_map[env_id] = np.zeros((3, h, w), )
-    # the three dimensions will be object, color and status 
-
 # Function to get the env, dimension, height, width 4-dimensional matrix, used for calculating exploration rate
 def get_rec(args):
     # read data from txt file
@@ -312,6 +300,23 @@ def get_rec(args):
         obj_rec[env_id] = np.array([[0 for i in range(11)] for j in range(2)])
 
     return env_rec, obj_rec
+
+# Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
+def get_world_maps(args):
+    with open(args.env_sizes, 'r') as f:
+        lines = f.readlines()
+
+    # parse the data and create world maps
+    world_map = {}
+    for line in lines:
+        env_id, h, w = map(int, line.strip().split(','))
+        world_map[env_id] = np.empty((3, h, w), dtype = str)    
+        # the three dimensions will be object, color and status, we intiialize them seperately now 
+        world_map[env_id][0] = np.full((h, w), "0", dtype = str)
+        world_map[env_id][1] = np.full((h, w), "-", dtype = str)
+        world_map[env_id][2] = np.full((h, w), "-", dtype = str)
+
+    return world_map
 
 def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
     n_env_rec = env_rec.copy()
@@ -521,11 +526,6 @@ if __name__ == '__main__':
         help = "the location to load your OpenAI API Key"
     )
     parser.add_argument(
-        "--disp",
-        action = "store_true",
-        help = "display the environment rendering (human) if in GUI environment"
-    )
-    parser.add_argument(
         "--envs",
         nargs = "+",
         help = "list of environment names, see the ./utilities/envs_mapping.txt for mapping between index and env",
@@ -723,12 +723,8 @@ if __name__ == '__main__':
     write_log(f"{open(args.sys_msg).read()}")
     write_log(f"\n################## System Message ##################\n")
 
-    # Load the environment size txt, and create a env_id, channel, height, width 4-dimensional 
-    # env_rec to record the exploration with environment, and channel, height, width 3-dimensional 
-    # list to track the object exploration record. three channels are view, toggle
-    env_rec, obj_rec = get_rec(args)
-    pos_m = get_pos_m(args)
-
+    # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
+    world_map = get_world_maps(args)
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
 
@@ -739,21 +735,21 @@ if __name__ == '__main__':
         env_id = int(i)
         # For each new environment, the inventory is always 0
         inv = 0
-        env_name = envs_id_mapping[int(n_env_id)]
+        env_name = envs_id_mapping[env_id]
         if args.log:
             print(f"Loading environment = {env_name}")
         write_log(f"Loading environment = {env_name}")
 
         env: MiniGridEnv = gym.make(
             id = env_name,
-            render_mode = "human" if args.disp else "rgb_array",
+            render_mode = "rgb_array",
             agent_view_size = args.view,
             screen_size = args.screen
         )
 
         if args.wandb:
-            scn_table = wandb.Table(columns = ["img", "obs", "text", "pos", "act", "n_exp", "c_exp"])
-            rec_table = wandb.Table(columns = ["env_view", "env_intr", "env_step", "pos", "dir", "act", "obj_view", "obj_intr"])
+            scn_table = wandb.Table(columns = ["img", "text", "act", "n_exp", "c_exp"])
+            rec_table = wandb.Table(columns = ["env_view", "env_step", "pos", "dir", "act", "obj_view", "obj_intr"])
         
         # For every new environment, the action history is always 0 (empty)
         act_his = []
