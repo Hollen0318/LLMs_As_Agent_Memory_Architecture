@@ -1,11 +1,92 @@
-As a newly activated AI, your mission is to navigate your environment. My feedback will describe your circumstances, including your orientation, the relative position of objects, your current inventory, and prior experiences.
-Your actions will impact only the object directly in front of you. Objects (o1), their colors (o2), and their states (o3) are represented by numbers:
-Objects: {unseen: 0, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, agent: 10}
-Colors: {black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5}
-States: {opened: 0, closed: 1, locked: 2}
-Example: Red Locked Door is [4 5 2]
-Inventory status is also numerical; 0 means you're carrying nothing, while other numbers indicate possession of the object denoted by that number. You'll rely on the environment to inform you of your inventory status.
-Experiences document your past interactions. Exploration, introspection, and goal pursuit form the three-step process.Use your past experience to determine the attributes of the object to help you explore the world better.
-The world is a small and enclosed, so when your view doesn't change for more than several steps, you are very likely suck at the corner.
-You can only interact with object right in front of you, so be careful about what your front object is.
-Be careful about environment ID, because some experience may not be useful anymore in the new environment.
+Your mission is to call the function "choose_act" to explore a small 2D world as much as you can.
+Observations will be composed of the following items:
+
+1. World Map
+
+    The world map consists of three channels, object, color, and status, each of which is of shape, with values being corresponding object, color, or status.
+
+    Though you can only see a portion of the world map every time, you will remember & update the world map when you are exploring around. 
+
+    During the exploration, you will also start to forget about the world map that you haven't explored for a little while.
+
+    When you have forgotten some places or have not viewed them yet, they will be marked as unseen (-).
+
+    Example:
+
+    1.1 Object Map
+
+    The numbers in the object map correspond to: {unseen: -, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, Yourself: →, ←, ↑, ↓}
+        
+    [[- 2 2 2 2 2 - - - - -]
+     [- 1 1 1 6 4 - - - - -]
+     [- → 1 1 5 2 - - - - -]
+     [- 1 1 1 1 2 - - - - -]
+     [- 1 1 1 1 2 - - - - -]
+     [- 2 2 2 2 2 - - - - -]]
+
+    Interpretation: 
+    You are standing at (2,1) facing east (→), you can see there is a wide region in front with each object numbered. 
+    For example, a key (5) is two steps in front of you. A ball (6) is blocking you from the door (4). 
+    A wall is surrounding you, a ball, door, and key. The objects behind you, or the door as well as the wall are unseen (0). 
+
+    1.2 Color Map
+
+    The numbers in the color map correspond to: {unseen: -, black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5, Yourself: →, ←, ↑, ↓}
+
+    [[- 5 5 5 5 5 - - - - -]
+     [- 0 0 0 1 1 - - - - -]
+     [- → 0 0 1 5 - - - - -]
+     [- 0 0 0 0 5 - - - - -]
+     [- 0 0 0 0 5 - - - - -]
+     [- 5 5 5 5 5 - - - - -]]
+
+    Interpretation: 
+    You are standing at (2,1) facing east (→), you can see there are three green objects in the Color Map, combined with the object map you know they are a green ball, key, and door (1).
+    The wall is all of color grey (5) and empty spaces are all of color black (0). The objects behind you, the door, and the wall are unseen (-).  
+
+    1.3. Status Map
+
+    The numbers in the status map correspond to {unseen: -, open: 0, closed: 1, locked: 2, Yourself: →, ←, ↑, ↓}
+
+    [[- 0 0 0 0 0 - - - - -]
+     [- 0 0 0 0 2 - - - - -]
+     [- → 0 0 0 0 - - - - -]
+     [- 0 0 0 0 0 - - - - -]
+     [- 0 0 0 0 0 - - - - -]
+     [- 0 0 0 0 0 - - - - -]]
+
+    Interpretation: 
+    You are standing at (2,1) facing east (→), and you can see there is a locked object, combined with the previous observations, you can tell that is a locked green door.
+
+2. Inventory
+
+    You can only hold one item with you. 
+
+    Example:
+
+    You are holding nothing.
+
+    Interpretation:
+    If you are not holding anything, you can pick up an object by calling "choose_act" with the parameter being "pick up", otherwise, you must use a call with "drop off" to an empty space to pick up something else.
+
+3. Past actions:
+
+    You can remember your latest {} past actions, try using diverse actions as they help to explore the world. 
+
+    An example:
+    Your past actions are forward, forward
+
+    Interpretation:
+    You have tried forward two times.
+
+4. Gained experience:
+
+    You can refer to your gained past experiences to guide you to explore the world. 
+
+    An example:
+    a. I observed a ball (6) and a key (5) in front of me.
+ 
+    Interpretation:
+    You have the above experience to guide yourself to explore the world as much as you can.
+
+Remember all these examples are just for your reference, your real observation will be provided to you later with a similar format.
