@@ -45,7 +45,7 @@ class ManualControl:
 
     def step(self, action: Actions):
         obs, reward, terminated, truncated, _ = self.env.step(action)
-        print(f"obs img = {str(np.rot90(obs['image'].transpose(1,0,2)[:, :, 2], k=-1))} step={self.env.step_count}, reward={reward:.2f}")
+        print(f"obs img = {str(np.rot90(obs['image'].transpose(1,0,2)[:, :, 0], k=-1))} step={self.env.step_count}, reward={reward:.2f}")
 
         if terminated:
             print("terminated!")

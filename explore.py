@@ -469,26 +469,117 @@ def update_world_map_view_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow,
         rotated_image_col = np.rot90(image[:, :, 1], k = -1)
         rotated_image_sta = np.rot90(image[:, :, 2], k = -1)
         # 0. Deduct the env_memo_rec by 1 unless 0
-        env_memo_rec[env_id] = np.where(env_memo_rec[env_id] != 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
-        # 1. Update the env_view_rec
-
-        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec.shape[0], pos_x + args.view // 2)):
-            for col in range(pos_y, min(env_view_rec.shape[1], pos_y + args.view // 2)):
+        env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
+        # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
+        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec[env_id].shape[0], pos_x + args.view // 2)):
+            for col in range(pos_y, min(env_view_rec[env_id].shape[1], pos_y + args.view)):
                 # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
-                if rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y] != 0:
+                obj_name = rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y]
+                col_name = rotated_image_col[row - (pos_x - args.view // 2)][col - pos_y]
+                sta_name = rotated_image_sta[row - (pos_x - args.view // 2)][col - pos_y]
+                if obj_name != 0:
                     env_memo_rec[env_id][row][col] = args.memo
                     env_view_rec[env_id][row][col] += 1
-                obj_view_rec[env_id][rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y]] += 1
-                    
-
-
-                         
+                    # Update the world_map object level to be what's seen, except in agent's position we set it to be the arrow
+                    world_map[env_id][0][row][col] = str(obj_name)
+                    world_map[env_id][1][row][col] = str(col_name)
+                    world_map[env_id][2][row][col] = str(sta_name)
+                obj_view_rec[env_id][obj_name] += 1
+        world_map[env_id][0][pos_x][pos_y] = arrow
+        world_map[env_id][1][pos_x][pos_y] = arrow
+        world_map[env_id][2][pos_x][pos_y] = arrow
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
     elif arrow == "↑":
-
+        # It means the agent is facing north, so we update the env_memo_rec accordingly, specifically we 
+        # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
+        # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
+        image = obs['image'].transpose(1,0,2)
+        rotated_image_obj = image[:, :, 0]
+        rotated_image_col = image[:, :, 1]
+        rotated_image_sta = image[:, :, 2]
+        # 0. Deduct the env_memo_rec by 1 unless 0
+        env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
+        # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
+        for row in range(max(0, pos_x - args.view), pos_x):
+            for col in range(max(0, pos_y - args.view // 2), min(env_view_rec[env_id].shape[1], pos_y + args.view // 2)):
+                # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
+                obj_name = rotated_image_obj[row - (pos_x - args.view + 1)][col - (pos_y - args.view // 2)]
+                col_name = rotated_image_col[row - (pos_x - args.view + 1)][col - (pos_y - args.view // 2)]
+                sta_name = rotated_image_sta[row - (pos_x - args.view + 1)][col - (pos_y - args.view // 2)]
+                if obj_name != 0:
+                    env_memo_rec[env_id][row][col] = args.memo
+                    env_view_rec[env_id][row][col] += 1
+                    # Update the world_map object level to be what's seen, except in agent's position we set it to be the arrow
+                    world_map[env_id][0][row][col] = str(obj_name)
+                    world_map[env_id][1][row][col] = str(col_name)
+                    world_map[env_id][2][row][col] = str(sta_name)
+                obj_view_rec[env_id][obj_name] += 1
+        world_map[env_id][0][pos_x][pos_y] = arrow
+        world_map[env_id][1][pos_x][pos_y] = arrow
+        world_map[env_id][2][pos_x][pos_y] = arrow
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
     elif arrow == "↓":
-
+        # It means the agent is facing right, so we update the env_memo_rec accordingly, specifically we 
+        # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
+        # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
+        image = obs['image'].transpose(1,0,2)
+        rotated_image_obj = np.rot90(image[:, :, 0], k = -1)
+        rotated_image_col = np.rot90(image[:, :, 1], k = -1)
+        rotated_image_sta = np.rot90(image[:, :, 2], k = -1)
+        # 0. Deduct the env_memo_rec by 1 unless 0
+        env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
+        # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
+        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec[env_id].shape[0], pos_x + args.view // 2)):
+            for col in range(pos_y, min(env_view_rec[env_id].shape[1], pos_y + args.view // 2)):
+                # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
+                obj_name = rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y]
+                if obj_name != 0:
+                    env_memo_rec[env_id][row][col] = args.memo
+                    env_view_rec[env_id][row][col] += 1
+                    # Update the world_map object level to be what's seen, except in agent's position we set it to be the arrow
+                    world_map[env_id][0][row][col] = str(obj_name)
+                    world_map[env_id][1][row][col] = str(obj_name)
+                    world_map[env_id][2][row][col] = str(obj_name)
+                obj_view_rec[env_id][obj_name] += 1
+        world_map[env_id][0][pos_x][pos_y] = arrow
+        world_map[env_id][1][pos_x][pos_y] = arrow
+        world_map[env_id][2][pos_x][pos_y] = arrow
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
     elif arrow == "←":
-
+        # It means the agent is facing right, so we update the env_memo_rec accordingly, specifically we 
+        # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
+        # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
+        image = obs['image'].transpose(1,0,2)
+        rotated_image_obj = np.rot90(image[:, :, 0], k = -1)
+        rotated_image_col = np.rot90(image[:, :, 1], k = -1)
+        rotated_image_sta = np.rot90(image[:, :, 2], k = -1)
+        # 0. Deduct the env_memo_rec by 1 unless 0
+        env_memo_rec[env_id] = np.where(env_memo_rec[env_id] > 0, env_memo_rec[env_id] - 1, env_memo_rec[env_id])
+        # 1. Update the env_view_rec, env_memo_rec, obj_view_rec, world_map in three channels
+        for row in range(max(0, pos_x - args.view // 2), min(env_view_rec[env_id].shape[0], pos_x + args.view // 2)):
+            for col in range(pos_y, min(env_view_rec[env_id].shape[1], pos_y + args.view // 2)):
+                # If the object is not unseen, we record it to the env_memo, env_view, obj_view, world_map
+                obj_name = rotated_image_obj[row - (pos_x - args.view // 2)][col - pos_y]
+                if obj_name != 0:
+                    env_memo_rec[env_id][row][col] = args.memo
+                    env_view_rec[env_id][row][col] += 1
+                    # Update the world_map object level to be what's seen, except in agent's position we set it to be the arrow
+                    world_map[env_id][0][row][col] = str(obj_name)
+                    world_map[env_id][1][row][col] = str(obj_name)
+                    world_map[env_id][2][row][col] = str(obj_name)
+                obj_view_rec[env_id][obj_name] += 1
+        world_map[env_id][0][pos_x][pos_y] = arrow
+        world_map[env_id][1][pos_x][pos_y] = arrow
+        world_map[env_id][2][pos_x][pos_y] = arrow
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+        # env_memo_rec[env_id][pos_x][pos_y] = args.memo
 
 # Function to write into the act_temp.txt to hint an action
 def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp, fro_obj_l):
