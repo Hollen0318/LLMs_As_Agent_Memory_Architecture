@@ -55,9 +55,10 @@ def describe_location(diff_x, diff_y):
 
 
 def get_action(args, env_id, world_map, inv, act_his, obs, exp):
+    global save_path
     if args.log:
         print(f"\n\n################## Start Deciding ##################\n\n")
-    write_log(f"\n\n################## Start Deciding ##################\n\n")
+    write_log(save_path, f"\n\n################## Start Deciding ##################\n\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
@@ -123,7 +124,7 @@ def get_action(args, env_id, world_map, inv, act_his, obs, exp):
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
+                write_log(save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
     return act_obj_pair[act], act_msg_s
@@ -140,9 +141,10 @@ def get_env_id_mapping(args):
 
 # Getting the experience based on two observation, action chosen and action history
 def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_inv, act_his):
+    global save_path
     if args.log:
         print(f"\n################## Starting Reflection ##################\n")
-    write_log(f"\n################## Starting Reflection ##################\n")
+    write_log(save_path, f"\n################## Starting Reflection ##################\n")
     if args.input:
         return "new experience"
     else:
@@ -176,7 +178,7 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
         msg = [{"role": "system", "content": sys_msg_s}]
         if args.log:
             print(f"Prompt Message = \n\n{refl_msg_s}")
-        write_log(f"Prompt Message = \n\n{refl_msg_s}")
+        write_log(save_path, f"Prompt Message = \n\n{refl_msg_s}")
         msg.append({"role": "user", "content": refl_msg_s})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
@@ -192,14 +194,14 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
+                write_log(save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
         if args.log:
             print(f"\n\n***************** Gained Experience *****************\n\n")
             print(f"{n_exp}")
-        write_log(f"\n\n***************** Gained Experience *****************\n\n")
-        write_log(f"{n_exp}")
+        write_log(save_path, f"\n\n***************** Gained Experience *****************\n\n")
+        write_log(save_path, f"{n_exp}")
 
         return n_exp
 
@@ -226,7 +228,7 @@ def get_path(args):
     else:
         dir_n = "GPT"
     # Get today's date and format it as MM_DD_YYYY
-    timestamp = datetime.today().strftime("%m_%d_%Y"),
+    timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
     if args.all:
         env_names = "ALL"
     else:
@@ -236,8 +238,7 @@ def get_path(args):
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path
     full_path = os.path.join(dir_n, env_names, folder_name, str(timestamp))
-    if not os.path.exists(full_path):
-        os.makedirs(full_path)
+    
     return full_path
 
 # Function to get re-spawn position (when seed = 23 only)
@@ -254,25 +255,26 @@ def get_pos_m(args):
 
     return pos_m
 
-def get_ratios(args, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec):
-    env_view_r = np.count_nonzero(env_view_rec) / np.size(env_view_rec) * 100
+def get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec):
+    global save_path
+    env_view_r = np.count_nonzero(env_view_rec[env_id]) / np.size(env_view_rec[env_id]) * 100
     env_view_r_s = "{:.3f}%".format(env_view_r)
 
-    env_step_r = np.count_nonzero(env_step_rec) / np.size(env_step_rec) * 100
+    env_step_r = np.count_nonzero(env_step_rec[env_id]) / np.size(env_step_rec[env_id]) * 100
     env_step_r_s = "{:.3f}%".format(env_step_r)
 
-    env_memo_r = np.count_nonzero(env_memo_rec) / np.size(env_memo_rec) * 100
+    env_memo_r = np.count_nonzero(env_memo_rec[env_id]) / np.size(env_memo_rec[env_id]) * 100
     env_memo_r_s = "{:.3f}%".format(env_memo_r)
 
-    obj_intr_r = np.count_nonzero(obj_intr_rec) / np.size(obj_intr_rec) * 100
+    obj_intr_r = np.count_nonzero(obj_intr_rec[env_id]) / np.size(obj_intr_rec[env_id]) * 100
     obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
 
-    obj_view_r = np.count_nonzero(obj_view_rec) / np.size(obj_view_rec) * 100
+    obj_view_r = np.count_nonzero(obj_view_rec[env_id]) / np.size(obj_view_rec[env_id]) * 100
     obj_view_r_s = "{:.3f}%".format(obj_view_r)
     
     if args.log:
         print(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
-    write_log(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
+    write_log(save_path, f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
     
     return env_view_r, env_step_r, env_memo_r, obj_intr_r, obj_view_r
 
@@ -351,9 +353,10 @@ def right_arrow(arrow):
     return r_arrow
 
 def sum_exp(args, n_exp, o_exp, act_his):
+    global save_path
     if args.log:
         print(f"\n\n################## Starting Summarizing ##################\n\n")
-    write_log(f"\n\n################## Starting Summarizing ##################\n\n")
+    write_log(save_path, f"\n\n################## Starting Summarizing ##################\n\n")
     if args.input:
         return "summarized experience"
     else:
@@ -372,7 +375,7 @@ def sum_exp(args, n_exp, o_exp, act_his):
         msg = [{"role": "system", "content": sys_msg_s}]
         if args.log:
             print(f"Prompt Message = \n\n{sum_msg_s}")
-        write_log(f"Prompt Message = \n\n{sum_msg_s}")
+        write_log(save_path, f"Prompt Message = \n\n{sum_msg_s}")
         msg.append({"role": "user", "content": sum_msg_s})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
@@ -388,18 +391,19 @@ def sum_exp(args, n_exp, o_exp, act_his):
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
+                write_log(save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
         if args.log:
             print(f"\n\n***************** Summarized Experience *****************\n\n")
             print(f"{c_exp}")
-        write_log(f"\n\n***************** Summarized Experience *****************\n\n")
-        write_log(f"{c_exp}")
+        write_log(save_path, f"\n\n***************** Summarized Experience *****************\n\n")
+        write_log(save_path, f"{c_exp}")
         return c_exp
 
 # Update the position based on the arrow and previous position    
 def update_pos(pos_x, pos_y, arrow):
+    n_pos_x, n_pos_y = pos_x, pos_y
     if arrow == "↑":
         n_pos_x -= 1
     elif arrow == "↓":
@@ -448,6 +452,7 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
 
 # 1. We need to update the world map in object level, which we should initialize using pos_x, pos_y, arrow, obs, world_map, env_memo_rec
 def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec):
+    global save_path
     # With the new obs, we should first update the env_memo_rec, as it will determine which parts of world map will show
     if arrow == "→":
         # It means the agent is facing right, so we update the env_memo_rec accordingly, specifically we 
@@ -591,88 +596,17 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                 world_map[env_id][0][row][col] = "-"
                 world_map[env_id][1][row][col] = "-"
                 world_map[env_id][2][row][col] = "-"
+    if args.log:
+        print(f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
+    write_log(save_path, f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
     return p_obj, p_col, p_sta
-# Function to write into the act_temp.txt to hint an action
-def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp, fro_obj_l):
-    dir = obs['direction']
-    dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-    dir_s = dir_dic[dir]
-
-    img = obs['image'].transpose(1,0,2)
-    act_his_s = ", ".join(act_his)
-    with open(args.act_temp, 'r', encoding='utf-8') as file:
-        temp = file.read()
-
-    obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
-    col_idx = {0: "black", 1: "green", 2: "blue", 3: "purple", 4: "yellow", 5: "grey"}
-    sts_idx = {0: "open", 1: "closed", 2: "locked"}
-
-    fro_obj_s = f"Your front object is {obj_idx[fro_obj_l[0]]} {col_idx[fro_obj_l[1]]} {sts_idx[fro_obj_l[2]]}"
-
-    act_temp_s = temp.format(str(world_map), str(pos), dir_s, str(img), str(inv), str(env_id), act_his_s, c_exp, fro_obj_s)
-    
-    return act_temp_s
 
 # Function to write the logging infos in to log save file
-def write_log(text):
-    save_path = get_path(args)
+def write_log(save_path, text):
     # Open the file in append mode
     with open(os.path.join(save_path, f"log.txt"), "a", encoding='utf-8') as file:
         # Write the strings to the file
         file.write(text)
-
-# Function to write into the refl_temp.txt to hint an reflection based on past & new observation
-def write_refl_temp(args, o_world_map, o_pos, o_obs, o_inv, o_env_id, 
-                   act, o_fro_obj_s, n_world_map, n_pos, n_obs, n_inv, 
-                   n_env_id, n_fro_obj_s, n_act_his):
-    
-    dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-
-    o_img = o_obs['image'].transpose(1,0,2)
-    o_dir = o_obs['direction']
-    o_dir_s = dir_dic[o_dir]
-
-    n_img = n_obs['image'].transpose(1,0,2)
-    n_dir = n_obs['direction']
-    n_dir_s = dir_dic[n_dir]
-
-    n_act_his_s = ", ".join(n_act_his)
-    
-    with open(args.refl_temp, 'r', encoding='utf-8') as file:
-        temp = file.read()
-
-    refl_temp_s = temp.format(str(o_world_map), str(o_pos), o_dir_s, str(o_img), str(o_inv), 
-                             str(o_env_id), act, o_fro_obj_s, str(n_world_map), str(n_pos), 
-                             n_dir_s, str(n_img), str(n_inv), str(n_env_id), n_fro_obj_s, 
-                             n_act_his_s, str(args.lim))
-    
-    return refl_temp_s
-
-# Function to write into the rpt_temp.txt to report the current progress.
-def write_rpt_temp(args, env_view, env_intr, env_step, obj_view, obj_intr, pos, 
-                   env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s):
-    
-    with open(args.rpt_temp, 'r', encoding='utf-8') as file:
-        temp = file.read()
-
-    rpt_temp_s = temp.format(str(env_view), str(env_intr), str(env_step), 
-                             str(obj_view), str(obj_intr), str(pos),
-                             env_view_r_s, env_intr_r_s, env_step_r_s,
-                             obj_view_r_s, obj_intr_r_s)
-    
-    return rpt_temp_s
-
-# Function to write into the sum_temp.txt to hint an summarized experience based past & new experience
-def write_sum_temp(args, o_exp, n_exp, act_his):
-
-    with open(args.sum_temp, 'r', encoding='utf-8') as file:
-        temp = file.read()
-        
-    act_his_s = ", ".join(act_his)
-
-    refl_temp_s = temp.format(o_exp, n_exp, act_his_s, str(args.lim))
-    
-    return refl_temp_s
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -847,13 +781,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
     save_path = get_path(args)
 
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
     # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
     # experience or an evolving experience will be dependent on the arguments. 
     if args.log:
         print(f"################## Starting Experiment ##################\n")
         print(f"Configurations are:\n{args}")
-    write_log(f"################## Starting Experiment ##################\n")
-    write_log(f"Configurations are:\n{args}")
+    write_log(save_path, f"################## Starting Experiment ##################\n")
+    write_log(save_path, f"Configurations are:\n{args}")
 
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
@@ -883,7 +820,7 @@ if __name__ == '__main__':
     if args.log:
         print(f"\n################## System Message ##################\n")
         print(sys_msg_s)
-    write_log(f"\n################## System Message ##################\n")
+    write_log(save_path, f"\n################## System Message ##################\n")
     write_log(sys_msg_s)
 
     # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
@@ -908,7 +845,7 @@ if __name__ == '__main__':
         env_name = envs_id_mapping[env_id]
         if args.log:
             print(f"Loading environment = {env_name}")
-        write_log(f"Loading environment = {env_name}")
+        write_log(save_path, f"Loading environment = {env_name}")
 
         env: MiniGridEnv = gym.make(
             id = env_name,
@@ -929,7 +866,7 @@ if __name__ == '__main__':
         p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
         # Iterate the agent exploration within the limit of args.steps
         if args.wandb:
-            scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
+            # scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
             env_table.add_data(str(env_view_rec[env_id]).replace(".", ""), str(env_step_rec[env_id]).replace(".", ""), str(env_memo_rec[env_id]).replace(".", ""))
             obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
             world_map_table.add_data(str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", ""))
@@ -981,6 +918,8 @@ if __name__ == '__main__':
                 else:
                     if not np.array_equal(n_obs, obs):
                         n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
+                    else:
+                        n_pos_x, n_pos_y = pos_x, pos_y
                 world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
@@ -1052,7 +991,7 @@ if __name__ == '__main__':
                 obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
                 world_map_table.add_data(str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", ""))
         
-            env_view_ratio, env_step_ratio, env_memo_ratio, obj_intr_ratio, obj_view_ratio = get_ratios(args, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec)
+            env_view_ratio, env_step_ratio, env_memo_ratio, obj_intr_ratio, obj_view_ratio = get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec)
         
             metrics = {
                 "env_view_ratio": env_view_ratio,
