@@ -905,9 +905,6 @@ if __name__ == '__main__':
             act, act_msg_s = get_action(args, env_id, world_map, inv, act_his, obs, exp)
             # We get the action from the act_hint, the act is a string format like "pick up"
             # With the new act, we convert it into the actions object
-            img_array = env.render()
-            img = Image.fromarray(img_array)
-            img.save(os.path.join(save_path, f"env_{i}_action_{str(j)}_{act}.png"))
             
             if act == "left":
 
@@ -1030,6 +1027,10 @@ if __name__ == '__main__':
                 exp = c_exp
                 obs = n_obs
                 inv = n_inv
+
+            img_array = env.render()
+            img = Image.fromarray(img_array)
+            img.save(os.path.join(save_path, f"env_{i}_action_{str(j)}_{act}.png"))
 
             if args.wandb:
                 scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
