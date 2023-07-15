@@ -55,6 +55,9 @@ def describe_location(diff_x, diff_y):
 
 
 def get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs, exp):
+    if args.log:
+        print(f"\n################## Starting Deciding ##################\n")
+    write_log(f"\n################## Starting Deciding ##################\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
@@ -92,6 +95,9 @@ def get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec
         fuc_msg = open(args.fuc_msg).read()
         fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
         msg.append({"role": "user", "content": act_msg})
+        if args.log:
+            print(f"Prompt message = {act_msg}")
+        write_log(act_msg)
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -133,6 +139,23 @@ def get_env_id_mapping(args):
             _, env_name = line.strip().split(", ")
             id_mappings.append(env_name)
     return id_mappings
+
+# Getting the experience based on two observation, action chosen and action history
+def get_exp(args, env_id, world_map, inv_o, act, obs, n_obs, world_map_c, inv, act_his):
+    if args.log:
+        print(f"\n################## Starting Reflection ##################\n")
+    write_log(f"\n################## Starting Reflection ##################\n")
+    if args.input:
+        return "new experience"
+    else:
+        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
+        with open(args.sys_msg, 'r') as file:
+            sys_temp = file.read()
+        sys_msg_s = sys_temp.format(str(args.refresh))
+        # Then we need the observation message, which we will fill the act_temp.txt
+        with open(args.refl_temp, 'r') as file:
+            refl_temp_s = file.read()
+        refl_temp_s
 
 # Getting the experience based on two text description and past actions 
 def get_exp(args, reflect_hint, p_exp, act_his):
@@ -578,6 +601,12 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+    for row in range(env_memo_rec[env_id].shape[0]):
+        for col in range(env_memo_rec[env_id].shape[1]):
+            if env_memo_rec[env_id][row][col] == 0:
+                world_map[env_id][0][row][col] == "-"
+                world_map[env_id][1][row][col] == "-"
+                world_map[env_id][2][row][col] == "-"
 
 # Function to write into the act_temp.txt to hint an action
 def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp, fro_obj_l):
@@ -601,7 +630,8 @@ def write_act_temp(args, world_map, pos, obs, inv, env_id, act_his, c_exp, fro_o
     return act_temp_s
 
 # Function to write the logging infos in to log save file
-def write_log(save_path, text):
+def write_log(text):
+    save_path = get_path(args)
     # Open the file in append mode
     with open(os.path.join(save_path, f"log.txt"), "a") as file:
         # Write the strings to the file
@@ -838,8 +868,8 @@ if __name__ == '__main__':
     if args.log:
         print(f"################## Starting Experiment ##################\n")
         print(f"Configurations are:\n{args}")
-    write_log(save_path, f"################## Starting Experiment ##################\n")
-    write_log(save_path, f"Configurations are:\n{args}")
+    write_log(f"################## Starting Experiment ##################\n")
+    write_log(f"Configurations are:\n{args}")
 
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
@@ -925,8 +955,20 @@ if __name__ == '__main__':
             # With the new act, we convert it into the actions object
             if act == "left":
                 # We update the world map, env view, env memo, obj_view, act history, arrow
-                arrow = left_arrow(args, arrow)
-                world_map = left_world_map(args, world_map, ) 
+                if arrow == "↑":
+                    arrow = "←"
+                elif arrow == "↓":
+                    arrow = "→"
+                elif arrow == "←":
+                    arrow = "↓"
+                elif arrow == "→":
+                    arrow = "↑"
+                world_map_c = world_map.copy()
+                n_obs, reward, terminated, truncated, _ = env.step(Actions.left)
+                inv_o = inv
+                act_his.append(act)
+                update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                n_exp = get_exp(args, env_id, world_map, inv_o, act, obs, n_obs, world_map_c, inv, act_his)
             elif act == "right":
 
             elif act == "forward":
