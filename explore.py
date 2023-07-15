@@ -254,33 +254,27 @@ def get_pos_m(args):
 
     return pos_m
 
-# Function to return six matrices measuring the exploration ratio (environment for current env_id), 
-# they are two:
-# A. Environment Ratio
-#   1. view:      how much agent has seen versus whole environment
-#   2. intr:      how much agent has toggle, pick up, drop off versus all environment
-#   3. step:      how much agent has stepped into versus whole environment
-
-# B. Object Ratio
-#   1. view:      how much agent has seen versus whole objects list
-#   2. intr:      how much agent has toggle, pick up, drop off versus all objects list
 def get_ratios(args, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec):
     env_view_r = np.count_nonzero(env_view_rec) / np.size(env_view_rec) * 100
     env_view_r_s = "{:.3f}%".format(env_view_r)
 
+    env_step_r = np.count_nonzero(env_step_rec) / np.size(env_step_rec) * 100
+    env_step_r_s = "{:.3f}%".format(env_step_r)
+
     env_memo_r = np.count_nonzero(env_memo_rec) / np.size(env_memo_rec) * 100
     env_memo_r_s = "{:.3f}%".format(env_memo_r)
 
-    env_step_r = np.count_nonzero(env_step_rec) / np.size(env_step_rec) * 100
-    env_step_r_s = "{:.3f}%".format(env_step_r)
+    obj_intr_r = np.count_nonzero(obj_intr_rec) / np.size(obj_intr_rec) * 100
+    obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
 
     obj_view_r = np.count_nonzero(obj_view_rec) / np.size(obj_view_rec) * 100
     obj_view_r_s = "{:.3f}%".format(obj_view_r)
     
-    obj_intr_r = np.count_nonzero(obj_intr_rec) / np.size(obj_intr_rec) * 100
-    obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
+    if args.log:
+        print(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
+    write_log(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
     
-    return 
+    return env_view_r, env_step_r, env_memo_r, obj_intr_r, obj_view_r
 
 # The environment matrix records how many times an agent has seen a portion of object,
 # For example, if the agent has seen the object at (1,1), then it will be incremented by 1, with all other places being decreased by 1
@@ -1058,8 +1052,19 @@ if __name__ == '__main__':
                 obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
                 world_map_table.add_data(str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", ""))
         
-        env_view_ratio, env_step_ratio, env_memo_ratio, obj_intr_ratio, obj_view_ratio = get_ratios(args, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec)
+            env_view_ratio, env_step_ratio, env_memo_ratio, obj_intr_ratio, obj_view_ratio = get_ratios(args, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec)
+        
+            metrics = {
+                "env_view_ratio": env_view_ratio,
+                "env_memo_ratio": env_memo_ratio,
+                "env_step_ratio": env_step_ratio,
+                "obj_view_ratio": obj_view_ratio,
+                "obj_intr_ratio": obj_intr_ratio
+            }
 
+            if args.wandb:
+                # Log the metrics
+                wandb.log(metrics)
 
         # Environment close() due to all steps finished      
         env.close()
