@@ -9,6 +9,8 @@ Observations will be composed of the following items:
 
     During the exploration, you will also start to forget about the world map that you haven't explored for a little while.
 
+    You can only see areas in front of you, so the area not in your sight will gradually be forgotten.
+
     When you have forgotten some places or have not viewed them yet, they will be marked as unseen (-).
 
     Example:
@@ -85,8 +87,11 @@ Observations will be composed of the following items:
 
     An example:
     a. I observed a ball (6) and a key (5) in front of me.
+    b. The wall (5) is blocking me so I need to turn around.
  
     Interpretation:
     You have the above experience to guide yourself to explore the world as much as you can.
 
 Remember all these examples are just for your reference, your real observation will be provided to you later with a similar format.
+Remember during exploration you will forget past scenes so stucking at corner will lose past memory about the world map.
+It's a small and enclosed world so if no change in world map, you are likely to be stuck. 

@@ -1,4 +1,5 @@
 # Packages
+import pandas as pd
 import openai
 import gymnasium as gym
 from Minigrid.minigrid.core.actions import Actions
@@ -63,7 +64,14 @@ def get_action(args, env_id, world_map, inv, act_his, obs, exp):
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
         # A demo action when using input
-        return "forward"
+        act = input(f"""Choose your action using an integer from 0 - 5 (integer only): 
+(0) left: turn your view to the left object
+(1) right: turn your view to the right object
+(2) toggle: toggle the object in front of you
+(3) forward: move yourself to the front object if it's empty or opened
+(4) pick up: pick up the front object if it can be picked up
+(5) drop off: drop off the current inventory if front is empty\n\n""")
+        return act_obj_pair[act], "action message"
     else:
         # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
         with open(args.sys_temp, 'r', encoding='utf-8') as file:
@@ -96,7 +104,7 @@ def get_action(args, env_id, world_map, inv, act_his, obs, exp):
         msg.append({"role": "user", "content": act_msg_s})
         if args.log:
             print(f"Prompt message = {act_msg_s}")
-        write_log(act_msg_s)
+        write_log(save_path, act_msg_s)
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -177,8 +185,8 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
             sys_msg_s += "You will be prompted a goal in the environment.\n"
         msg = [{"role": "system", "content": sys_msg_s}]
         if args.log:
-            print(f"Prompt Message = \n\n{refl_msg_s}")
-        write_log(save_path, f"Prompt Message = \n\n{refl_msg_s}")
+            print(f"\nPrompt Message = \n\n{refl_msg_s}")
+        write_log(save_path, f"\nPrompt Message = \n\n{refl_msg_s}")
         msg.append({"role": "user", "content": refl_msg_s})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
@@ -207,18 +215,20 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
 
 def get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow):
     if arrow == "↑":
-        return int(world_map[env_id][pos_x - 1][pos_y])
+        return int(world_map[env_id][0][pos_x - 1][pos_y])
     elif arrow == "↓":
-        return int(world_map[env_id][pos_x + 1][pos_y])
+        return int(world_map[env_id][0][pos_x + 1][pos_y])
     elif arrow == "←":
-        return int(world_map[env_id][pos_x][pos_y - 1])
+        return int(world_map[env_id][0][pos_x][pos_y - 1])
     elif arrow == "→":
-        return int(world_map[env_id][pos_x][pos_y + 1])
+        return int(world_map[env_id][0][pos_x][pos_y + 1])
 
 # Get the new inventory based on difference between o_obs and n_obs
 def get_n_inv(args, n_obs, o_obs):
-    indices = np.where(n_obs != o_obs)
-    return o_obs[indices[0][0]][indices[1][0]][indices[2][0]]
+    n_obs_img_obj = n_obs['image'].transpose(1,0,2)[:, :, 0]
+    o_obs_img_obj = o_obs['image'].transpose(1,0,2)[:, :, 0]
+    indices = np.where(n_obs_img_obj != o_obs_img_obj)
+    return o_obs_img_obj[indices[0][0]][indices[1][0]]
 
 # Get the saving path for the current argument setting
 def get_path(args):
@@ -274,7 +284,7 @@ def get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_
     
     if args.log:
         print(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
-    write_log(save_path, f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
+    write_log(save_path, f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r_s}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
     
     return env_view_r, env_step_r, env_memo_r, obj_intr_r, obj_view_r
 
@@ -597,7 +607,9 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                 world_map[env_id][1][row][col] = "-"
                 world_map[env_id][2][row][col] = "-"
     if args.log:
+        print(f"\n################## Debugging Position ##################\n")
         print(f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
+    write_log(save_path, f"\n################## Debugging Position ##################\n")
     write_log(save_path, f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
     return p_obj, p_col, p_sta
 
@@ -788,9 +800,9 @@ if __name__ == '__main__':
     # experience or an evolving experience will be dependent on the arguments. 
     if args.log:
         print(f"################## Starting Experiment ##################\n")
-        print(f"Configurations are:\n{args}")
+        print(f"Configurations are:\n{args}\n")
     write_log(save_path, f"################## Starting Experiment ##################\n")
-    write_log(save_path, f"Configurations are:\n{args}")
+    write_log(save_path, f"Configurations are:\n{args}\n")
 
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
@@ -821,7 +833,7 @@ if __name__ == '__main__':
         print(f"\n################## System Message ##################\n")
         print(sys_msg_s)
     write_log(save_path, f"\n################## System Message ##################\n")
-    write_log(sys_msg_s)
+    write_log(save_path, sys_msg_s)
 
     # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
     world_map = get_world_maps(args)
@@ -859,6 +871,19 @@ if __name__ == '__main__':
             env_table = wandb.Table(columns = ["env_view_rec", "env_step_rec", "env_memo_rec"])
             obj_table = wandb.Table(columns = ["obj_intr_rec", "obj_view_rec"])
             world_map_table = wandb.Table(columns = ["world_map_obj", "world_map_col", "world_map_sta"])
+        # we save them to the csv
+        # Define table structure
+        scn_table_columns = ["Image", "Message", "Action", "N_exp", "C_exp"]
+        env_table_columns = ["Env_View", "Env_Step", "Env_Memo"]
+        obj_table_columns = ["Obj_Intr", "Obj_View"]
+        world_map_table_columns = ["World_Map_Object", "World_Map_Color", "World_Map_Status"]
+
+        scn_table_df = pd.DataFrame(columns=scn_table_columns)
+        env_table_df = pd.DataFrame(columns=env_table_columns)
+        obj_table_df = pd.DataFrame(columns=obj_table_columns)
+        world_map_table_df = pd.DataFrame(columns=world_map_table_columns)
+        metrics_df = pd.DataFrame(columns=["env_view_ratio", "env_memo_ratio", "env_step_ratio", "obj_view_ratio", "obj_intr_ratio"])
+
 
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
@@ -908,15 +933,18 @@ if __name__ == '__main__':
                 obs = n_obs
 
             elif act == "forward":
-
-                o_world_map = world_map.copy()
+                o_world_map = {}
+                o_world_map[env_id] = world_map[env_id].copy()
+                o_world_map[env_id][0] = world_map[env_id][0].copy()
+                o_world_map[env_id][1] = world_map[env_id][1].copy()
+                o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.forward)
                 act_his.append(act)
                 if terminated:
                     pos_x, pos_y, arrow = pos_m[env_id]
                     sys.exit()
                 else:
-                    if not np.array_equal(n_obs, obs):
+                    if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
                     else:
                         n_pos_x, n_pos_y = pos_x, pos_y
@@ -939,7 +967,11 @@ if __name__ == '__main__':
                 if terminated:
                     pos_x, pos_y, arrow = pos_m[env_id]
                     sys.exit()
-                obj_intr_rec[env][0][get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)] += 1
+                front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+                if args.log:
+                    print(f"The front object being interacted with is {front_obj}")
+                write_log(save_path, f"The front object being interacted with is {front_obj}")
+                obj_intr_rec[env_id][0][front_obj] += 1
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
@@ -955,9 +987,13 @@ if __name__ == '__main__':
                     pos_x, pos_y, arrow = pos_m[env_id]
                     sys.exit()
                 else:
-                    if not np.array_equal(n_obs, obs):
+                    if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = 0
-                obj_intr_rec[env][1][get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)] += 1
+                front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+                if args.log:
+                    print(f"The front object being interacted with is {front_obj}")
+                write_log(save_path, f"The front object being interacted with is {front_obj}")
+                obj_intr_rec[env_id][0][front_obj] += 1
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
@@ -974,9 +1010,13 @@ if __name__ == '__main__':
                     pos_x, pos_y, arrow = pos_m[env_id]
                     sys.exit()
                 else:
-                    if not np.array_equal(n_obs, obs):
+                    if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = get_n_inv(args, n_obs, obs)
-                obj_intr_rec[env][2][get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)] += 1
+                front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+                if args.log:
+                    print(f"The front object being interacted with is {front_obj}")
+                write_log(save_path, f"The front object being interacted with is {front_obj}")
+                obj_intr_rec[env_id][0][front_obj] += 1
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
@@ -992,7 +1032,14 @@ if __name__ == '__main__':
                 world_map_table.add_data(str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", ""))
         
             env_view_ratio, env_step_ratio, env_memo_ratio, obj_intr_ratio, obj_view_ratio = get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec)
-        
+
+            # Log the data to the dataframe
+            scn_table_df.loc[len(scn_table_df)] = [wandb.Image(img), act_msg_s, act, n_exp, c_exp]
+            env_table_df.loc[len(env_table_df)] = [str(env_view_rec[env_id]).replace(".", ""), str(env_step_rec[env_id]).replace(".", ""), str(env_memo_rec[env_id]).replace(".", "")]
+            obj_table_df.loc[len(obj_table_df)] = [str(obj_intr_rec[env_id]), str(obj_view_rec[env_id])]
+            world_map_table_df.loc[len(world_map_table_df)] = [str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", "")]
+            metrics_df.loc[len(metrics_df)] = [env_view_ratio, env_memo_ratio, env_step_ratio, obj_view_ratio, obj_intr_ratio]
+
             metrics = {
                 "env_view_ratio": env_view_ratio,
                 "env_memo_ratio": env_memo_ratio,
@@ -1004,6 +1051,8 @@ if __name__ == '__main__':
             if args.wandb:
                 # Log the metrics
                 wandb.log(metrics)
+                wandb.log(metrics_df.iloc[-1].to_dict())
+
 
         # Environment close() due to all steps finished      
         env.close()
@@ -1014,5 +1063,12 @@ if __name__ == '__main__':
             wandb.log({f"Table/Environment Record for Environment #{i}": env_table})
             wandb.log({f"Table/Object Record for Environment #{i}": obj_table})
             wandb.log({f"Table/World Map for Environment #{i}": world_map_table})
+
+        # Save to CSV
+        scn_table_df.to_csv(os.path.join(save_path, 'scn_table.csv'), index=False)
+        env_table_df.to_csv(os.path.join(save_path, 'env_table.csv'), index=False)
+        obj_table_df.to_csv(os.path.join(save_path, 'obj_table.csv'), index=False)
+        world_map_table_df.to_csv(os.path.join(save_path, 'world_map_table.csv'), index=False)
+        metrics_df.to_csv(os.path.join(save_path, 'metrics.csv'), index=False)
 
     wandb.finish()
