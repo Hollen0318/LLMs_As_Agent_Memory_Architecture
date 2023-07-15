@@ -173,15 +173,13 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
         act_his_s = ", ".join(act_his) 
         refl_msg_s = refl_msg.format(str(o_world_map[env_id][0]), str(o_world_map[env_id][1]), str(o_world_map[env_id][2]), o_inv_s, act, o_goal, str(n_world_map[env_id][0]), str(n_world_map[env_id][1]), str(n_world_map[env_id][2]), n_inv_s, n_goal, act_his_s, str(args.lim))
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
-        sys_msg = open(args.sys_msg).read()
         if args.goal:
-            sys_msg += "You will be prompted a goal in the environment.\n"
-        msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = reflect_hint
+            sys_msg_s += "You will be prompted a goal in the environment.\n"
+        msg = [{"role": "system", "content": sys_msg_s}]
         if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
-        msg.append({"role": "user", "content": usr_msg})
+            print(f"Prompt Message = \n\n{refl_msg_s}")
+        write_log(f"Prompt Message = \n\n{refl_msg_s}")
+        msg.append({"role": "user", "content": refl_msg_s})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -202,39 +200,10 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
         if args.log:
             print(f"\n***************** Gained Experience *****************\n")
             print(f"{n_exp}")
-            print(f"\n################## Starting Reviewing ##################\n")
         write_log(f"\n***************** Gained Experience *****************\n")
         write_log(f"{n_exp}")
-        write_log(f"\n################## Starting Reviewing ##################\n")
-        msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = write_sum_temp(args, p_exp, n_exp, act_his)
-        if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
-        msg.append({"role": "user", "content": usr_msg})
-        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        while True:
-            try:
-                rsp = openai.ChatCompletion.create(
-                    model=gpt_map[args.gpt],
-                    messages=msg,
-                    temperature = args.temp, 
-                    max_tokens = args.lim
-                )
-                c_exp = rsp["choices"][0]["message"]["content"]
-                break
-            except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # double the delay each time we retry
-    if args.log:
-        print(f"\n***************** Summarized Experience *****************\n")
-        print(f"{c_exp}")
-    write_log(f"\n***************** Summarized Experience *****************\n")
-    write_log(f"{c_exp}")
-    return n_exp, p_exp, c_exp
+        
+        
 # Getting the experience based on two text description and past actions 
 def get_exp(args, reflect_hint, p_exp, act_his):
     if args.log:
