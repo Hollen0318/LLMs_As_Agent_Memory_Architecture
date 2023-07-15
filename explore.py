@@ -237,7 +237,7 @@ def get_path(args):
         dir_n = "INPUT"
     else:
         dir_n = "GPT"
-    # Get today's date and format it as MM_DD_YYYY
+
     timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
     if args.all:
         env_names = "ALL"
@@ -283,7 +283,7 @@ def get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_
     obj_view_r_s = "{:.3f}%".format(obj_view_r)
     
     if args.log:
-        print(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
+        print(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r_s}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
     write_log(save_path, f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r_s}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
     
     return env_view_r, env_step_r, env_memo_r, obj_intr_r, obj_view_r
@@ -896,6 +896,10 @@ if __name__ == '__main__':
             obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
             world_map_table.add_data(str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", ""))
         
+        img_array = env.render()
+        img = Image.fromarray(img_array)
+        img.save(os.path.join(save_path, f"env_{i}_action_start.png"))
+
         for j in range(args.steps):
             # We get a new action, during which update the record tables
             act, act_msg_s = get_action(args, env_id, world_map, inv, act_his, obs, exp)
@@ -1012,6 +1016,8 @@ if __name__ == '__main__':
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = get_n_inv(args, n_obs, obs)
+                    else:
+                        n_inv = inv
                 front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
                 if args.log:
                     print(f"The front object being interacted with is {front_obj}")
