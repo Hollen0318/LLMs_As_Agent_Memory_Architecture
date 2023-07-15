@@ -203,28 +203,10 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
 
         return n_exp
 
-# Function to get the front object based on the observation
-def get_fro_obj(args, obs):
-
-    img = obs['image'].transpose(1,0,2)
-
-    # The user location in the MiniGrid is always (view//2,view-1) where the x axis
-    # points to the right and y axis points to the down direction 
-    user_x, user_y = args.view - 1, args.view // 2
-
-    for x in range(args.view):
-        for y in range(args.view):
-            # We record the object in front of the agent for future use
-            if y == user_y and x == user_x - 1:
-                fro_obj_l = img[x,y]
-
-    obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
-    col_idx = {0: "black", 1: "green", 2: "blue", 3: "purple", 4: "yellow", 5: "grey"}
-    sts_idx = {0: "open", 1: "closed", 2: "locked"}
-
-    fro_obj_s = f"Your front object is {obj_idx[fro_obj_l[0]]} {col_idx[fro_obj_l[1]]} {sts_idx[fro_obj_l[2]]}"
-
-    return fro_obj_s, fro_obj_l
+# Get the new inventory based on difference between o_obs and n_obs
+def get_n_inv(args, n_obs, o_obs):
+    indices = np.where(n_obs != o_obs)
+    return o_obs[indices[0][0]][indices[1][0]][indices[2][0]]
 
 # Get the saving path for the current argument setting
 def get_path(args):
@@ -270,19 +252,20 @@ def get_pos_m(args):
 # B. Object Ratio
 #   1. view:      how much agent has seen versus whole objects list
 #   2. intr:      how much agent has toggle, pick up, drop off versus all objects list
-def get_ratios(args, env_id, env_rec, obj_rec):
-    env_view_r = np.sum(env_rec[env_id][0]) / env_rec[env_id][0].size * 100
-    env_view_r_s = "{:.3f}%".format(env_view_r)
-    env_intr_r = np.sum(env_rec[env_id][1]) / env_rec[env_id][1].size * 100
-    env_intr_r_s = "{:.3f}%".format(env_intr_r)
-    env_step_r = np.sum(env_rec[env_id][2]) / env_rec[env_id][2].size * 100
-    env_step_r_s = "{:.3f}%".format(env_step_r)
-    obj_view_r = np.sum(obj_rec[env_id][0]) / obj_rec[env_id][0].size * 100
-    obj_view_r_s = "{:.3f}%".format(obj_view_r)
-    obj_intr_r = np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100
-    obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
+# def get_ratios(args, world_map, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec):
+#     world_map_obj_r = 
+#     env_view_r = np.sum(env_rec[env_id][0]) / env_rec[env_id][0].size * 100
+#     env_view_r_s = "{:.3f}%".format(env_view_r)
+#     env_intr_r = np.sum(env_rec[env_id][1]) / env_rec[env_id][1].size * 100
+#     env_intr_r_s = "{:.3f}%".format(env_intr_r)
+#     env_step_r = np.sum(env_rec[env_id][2]) / env_rec[env_id][2].size * 100
+#     env_step_r_s = "{:.3f}%".format(env_step_r)
+#     obj_view_r = np.sum(obj_rec[env_id][0]) / obj_rec[env_id][0].size * 100
+#     obj_view_r_s = "{:.3f}%".format(obj_view_r)
+#     obj_intr_r = np.sum(obj_rec[env_id][1]) / obj_rec[env_id][1].size * 100
+#     obj_intr_r_s = "{:.3f}%".format(obj_intr_r)
     
-    return env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s
+#     return 
 
 # The environment matrix records how many times an agent has seen a portion of object,
 # For example, if the agent has seen the object at (1,1), then it will be incremented by 1, with all other places being decreased by 1
@@ -934,6 +917,7 @@ if __name__ == '__main__':
             img.save(os.path.join(save_path, f"env_{i}_action_{str(j)}_{act}.png"))
             
             if act == "left":
+
                 # We update the world map, env view, env memo, obj_view, act history, arrow
                 arrow = left_arrow(arrow)
                 o_world_map = world_map.copy()
@@ -952,6 +936,7 @@ if __name__ == '__main__':
                 exp = c_exp
                 obs = n_obs
             elif act == "right":
+
                 arrow = right_arrow(arrow)
                 o_world_map = world_map.copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.right)
@@ -968,11 +953,14 @@ if __name__ == '__main__':
                 
                 exp = c_exp
                 obs = n_obs
+
             elif act == "forward":
+
                 o_world_map = world_map.copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.forward)
                 act_his.append(act)
                 if terminated:
+                    pos_x, pos_y, arrow = pos_m[env_id]
                     sys.exit()
                 else:
                     if not np.array_equal(n_obs, obs):
@@ -989,157 +977,76 @@ if __name__ == '__main__':
                 
                 exp = c_exp
                 obs = n_obs
+
             elif act == "toggle":
 
-            elif act == "drop off":
+                o_world_map = world_map.copy()
+                n_obs, reward, terminated, truncated, _ = env.step(Actions.toggle)
+                act_his.append(act)
+                if terminated:
+                    pos_x, pos_y, arrow = pos_m[env_id]
+                    sys.exit()
 
-            elif act == "pick up":
-
-            # New act will affect many things:
-            # 1. Inventory Status: can be read from the new obs and past obs, comparing whether the front object has 
-            # disappeared (into empty), if yes, make the disappeared object as current inventory; or whether the front object
-            # has changed into something else, then restore the inventory status as nothing. 
-            # 2. World Map *: world map is composed of object, color and status. It needs the new obs in combination of the past position, action, we need to figure out where the agent will be after the action
-            # 3. env view record: env view record documents the total many of times agent has seen in the environment, it can be updated using the updated world map or new obs with new position to exclude the agent from updating the data
-            # 4. obj view record: obj view record documents the total many of times agent has seen objects, this can be updated directly from the updated world map or new obs with new position to exclude the agent from updating the data
-            # 5. obj intr record *: obj intr record documents the total many of times agent has been interacting with the object, this needs combination of the action and the front object, which could be read from the past observation or the old world map. 
-            # 6. action history: we can directly append the new action into the action history list
-            
-            # Take the action returned either by api or user
-            n_obs, reward, terminated, truncated, _ = env.step(act_obj)
-            
-            # 1. Get the new inventory status, doing this needs the world map and access it by using agent's initial position plus one in its corresponding direction
-            inv = update_inv(args, n_obs, world_map, pos_x, pos_y, arrow)
-
-            # 2. Update the world map
-            world_map = update_world_map(args, obs, )
-            # get five ratios measuring the exploration ratio
-            env_view_r, env_intr_r, env_step_r, obj_view_r, obj_intr_r, env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s = get_ratios(args, int(n_env_id), env_rec, obj_rec)
-
-            # We refresh the action history every args.refresh run to avoid too large action space
-            if len(act_his) >= args.refresh:
-                act_his = act_his[1:]
-
-            # gain the fro_obj
-            fro_obj_s, fro_obj_l = get_fro_obj(args, obs)
-
-            # write into the act template to obtain a action hint message
-            act_hint = write_act_temp(args, env_rec[int(n_env_id)][0], pos, obs, inv, int(n_env_id), act_his, exp, fro_obj_l)
-
-            # get an action in text e.g. forward, pick up
-            act = get_action(args, act_hint)
-
-            if args.log:
-                print(f"***************** Gained Action *****************\n")
-                print(f"You have choose to do \"{act}\"")
-            write_log(f"***************** Gained Action *****************\n")
-            write_log(f"You have choose to do \"{act}\"")
-
-            # using the action to determine the new inventory and MiniGrid action object
-            n_inv, act_obj = cvt_act(args, inv, act, fro_obj_l)
-
-            if args.disp:
-                scn = pyautogui.screenshot()
-                scn.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
-            else:
-                # make a screenshot on the gym
-                img_array = env.render()
-                img = Image.fromarray(img_array)
-                img.save(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.png"))
-
-            # take the action returned either by api or user
-            n_obs, reward, terminated, truncated, _ = env.step(act_obj)
-
-            if terminated:
-
-                # We restart current environment if terminated like stepping into the lava or finish the goal
-                act_his = []
-
-                # TODO Add the termination process
-                # Get the respawn position
-
-                pos = pos_m[int(i)]
-
-            else:
-                # get the new act_his list
-                n_act_his = act_his.copy()
-                n_act_his.append(act)
-                # get the new fro_obj
-                n_fro_obj_s, n_fro_obj_l = get_fro_obj(args, n_obs)
-
-                # We want the old observation and new observation to generate experience
-                n_pos, n_env_rec, n_obj_rec = update_rec(args, env_rec, obj_rec, int(n_env_id), act, pos, n_obs, fro_obj_l)
-                n_env_rec, n_obj_rec = link_rec_obs(args, int(n_env_id), n_env_rec, n_obj_rec, n_obs, n_pos)
-
-                # write into the reflect template to obtain a reflection hint message
-                reflect_hint = write_refl_temp(args, env_rec[o_env_id][0], pos, obs, inv, 
-                                               o_env_id, act, fro_obj_s, 
-                                               n_env_rec[int(n_env_id)][0], n_pos, n_obs, n_inv, 
-                                               n_env_id, n_fro_obj_s, n_act_his)
-
-                # get a new experience
-                if args.static:
-                    continue
-
-                else:
-                    n_exp, p_exp, c_exp = get_exp(args, reflect_hint, exp, n_act_his)
-                    with open(os.path.join(save_path, f"env_{i}_action_{act_idx}_{act}.txt"), "w") as f:
-                        f.write(f"New experience:\n\n{n_exp}\n")
-                        f.write(f"\nPast experience:\n\n{p_exp}\n")
-                        f.write(f"Summarized experiene:\n\n{c_exp}\n")
+                update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
+                c_exp = sum_exp(args, n_exp, exp, act_his)
 
                 if args.wandb:
-
-                # log everything to the wandb    
-                    scn_table.add_data(wandb.Image(img), str(obs), act_hint, str(pos), act, n_exp, c_exp)
-                    dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-                    rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
-                                       str(env_rec[int(n_env_id)][2]), str(n_pos), dir_dic[obs['direction']],
-                                       act, str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
-                    metrics = {
-                        "env_view_ratio": env_view_r,
-                        "env_intr_ratio": env_intr_r,
-                        "env_step_ratio": env_step_r,
-                        "obj_view_ratio": obj_view_r,
-                        "obj_intr_ratio": obj_intr_r
-                    }
-
-                    # Log the metrics
-                    wandb.log(metrics)
-
-                # Print the report by writing into the file rpt_temp.txt
-                report_text = write_rpt_temp(args, env_rec[int(n_env_id)][0], env_rec[int(n_env_id)][1], env_rec[int(n_env_id)][2], 
-                                             obj_rec[int(n_env_id)][0], obj_rec[int(n_env_id)][1], pos, 
-                                             env_view_r_s, env_intr_r_s, env_step_r_s, obj_view_r_s, obj_intr_r_s)
+                    scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
+                    env_table.add_data(str(env_view_rec[env_id]), str(env_step_rec[env_id]), str(env_memo_rec[env_id]))
+                    obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
+                    world_map_table.add_data(str(world_map[env_id][0]), str(world_map[env_id][1]), str(world_map[env_id][2]))
                 
-                # Print the records and write them to the log files
-                if args.log:
-                    print(f"\n***************** Records *****************\n")
-                    print(f"{report_text}\n")
-                write_log(f"\n***************** Records *****************\n")
-                write_log(f"{report_text}\n")
-                
-                # Update the observation into the new observation to be used by later deciding
-                obs = n_obs
-                
-                # Update the record to be the new rec
-                # update the env & obj record matrix 
-                pos, env_rec, obj_rec = n_pos, n_env_rec, n_obj_rec
-
-                # Increment the action index
-                act_idx += 1
-
-                # Update the experience into the combined experience to be used by later deciding
                 exp = c_exp
+                obs = n_obs
 
-                # Update the inv to be the n_inv
+            elif act == "drop off":
+                o_world_map = world_map.copy()
+                n_obs, reward, terminated, truncated, _ = env.step(Actions.forward)
+                act_his.append(act)
+                if terminated:
+                    pos_x, pos_y, arrow = pos_m[env_id]
+                    sys.exit()
+                else:
+                    if not np.array_equal(n_obs, obs):
+                        n_inv = 0
+                update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
+                c_exp = sum_exp(args, n_exp, exp, act_his)
+
+                if args.wandb:
+                    scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
+                    env_table.add_data(str(env_view_rec[env_id]), str(env_step_rec[env_id]), str(env_memo_rec[env_id]))
+                    obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
+                    world_map_table.add_data(str(world_map[env_id][0]), str(world_map[env_id][1]), str(world_map[env_id][2]))
+                
+                exp = c_exp
+                obs = n_obs
                 inv = n_inv
+                
+            elif act == "pick up":
+                o_world_map = world_map.copy()
+                n_obs, reward, terminated, truncated, _ = env.step(Actions.forward)
+                act_his.append(act)
+                if terminated:
+                    pos_x, pos_y, arrow = pos_m[env_id]
+                    sys.exit()
+                else:
+                    if not np.array_equal(n_obs, obs):
+                        n_inv = get_n_inv(args, n_obs, obs)
+                update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
+                c_exp = sum_exp(args, n_exp, exp, act_his)
 
-                # Update the act history to the n_act_his
-                act_his = n_act_his.copy()
-
-        # Update the environment ID into the new one
-        o_env_id = n_env_id
+                if args.wandb:
+                    scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
+                    env_table.add_data(str(env_view_rec[env_id]), str(env_step_rec[env_id]), str(env_memo_rec[env_id]))
+                    obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
+                    world_map_table.add_data(str(world_map[env_id][0]), str(world_map[env_id][1]), str(world_map[env_id][2]))
+                
+                exp = c_exp
+                obs = n_obs
+                inv = n_inv
 
         # Environment close() due to all steps finished      
         env.close()
@@ -1147,6 +1054,8 @@ if __name__ == '__main__':
         # Log datas to the wandb
         if args.wandb:
             wandb.log({f"Table/Screenshot for Environment #{i}": scn_table})
-            wandb.log({f"Table/Record for Environment #{i}": rec_table})
-            
+            wandb.log({f"Table/Environment Record for Environment #{i}": env_table})
+            wandb.log({f"Table/Object Record for Environment #{i}": obj_table})
+            wandb.log({f"Table/World Map for Environment #{i}": world_map_table})
+                 
     wandb.finish()
