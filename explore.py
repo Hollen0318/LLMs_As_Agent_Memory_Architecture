@@ -126,7 +126,7 @@ def get_action(args, env_id, world_map, inv, act_his, obs, exp):
                 write_log(f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
-    return act_obj_pair[act]
+    return act_obj_pair[act], act_msg_s
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_id_mapping(args):
@@ -202,82 +202,6 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
         write_log(f"{n_exp}")
 
         return n_exp
-        
-
-# Getting the experience based on two text description and past actions 
-def get_exp(args, reflect_hint, p_exp, act_his):
-    if args.log:
-        print(f"\n################## Starting Reflection ##################\n")
-    write_log(f"\n################## Starting Reflection ##################\n")
-    if args.input:
-        if args.log:
-            print(f"Prompt Message = \n\n{reflect_hint}")
-        write_log(f"Prompt Message = \n\n{reflect_hint}")
-        c_exp = input("Write your experience here")
-    else:
-        gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
-        sys_msg = open(args.sys_msg).read()
-        if args.goal:
-            sys_msg += "You will be prompted a goal in the environment.\n"
-        msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = reflect_hint
-        if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
-        msg.append({"role": "user", "content": usr_msg})
-        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        while True:
-            try:
-                rsp = openai.ChatCompletion.create(
-                    model = gpt_map[args.gpt],
-                    messages = msg,
-                    temperature = args.temp, 
-                    max_tokens = args.lim
-                )
-                n_exp = rsp["choices"][0]["message"]["content"]
-                break
-            except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # double the delay each time we retry
-        if args.log:
-            print(f"\n***************** Gained Experience *****************\n")
-            print(f"{n_exp}")
-            print(f"\n################## Starting Reviewing ##################\n")
-        write_log(f"\n***************** Gained Experience *****************\n")
-        write_log(f"{n_exp}")
-        write_log(f"\n################## Starting Reviewing ##################\n")
-        msg = [{"role": "system", "content": sys_msg}]
-        usr_msg = write_sum_temp(args, p_exp, n_exp, act_his)
-        if args.log:
-            print(f"Prompt Message = \n\n{usr_msg}")
-        write_log(f"Prompt Message = \n\n{usr_msg}")
-        msg.append({"role": "user", "content": usr_msg})
-        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        while True:
-            try:
-                rsp = openai.ChatCompletion.create(
-                    model=gpt_map[args.gpt],
-                    messages=msg,
-                    temperature = args.temp, 
-                    max_tokens = args.lim
-                )
-                c_exp = rsp["choices"][0]["message"]["content"]
-                break
-            except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(f"Caught an error: {e}\n")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # double the delay each time we retry
-    if args.log:
-        print(f"\n***************** Summarized Experience *****************\n")
-        print(f"{c_exp}")
-    write_log(f"\n***************** Summarized Experience *****************\n")
-    write_log(f"{c_exp}")
-    return n_exp, p_exp, c_exp
 
 # Function to get the front object based on the observation
 def get_fro_obj(args, obs):
@@ -450,116 +374,49 @@ def sum_exp(args, n_exp, o_exp, act_his):
         with open(args.sum_temp, 'r') as file:
             sum_msg = file.read()
         sum_msg_s = sum_msg.format(o_exp, n_exp, act_his_s, str(args.lim))
-    gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
-    sys_msg = open(args.sys_msg).read()
-    if args.goal:
-        sys_msg += "You will be prompted a goal in the environment.\n"
-    msg = [{"role": "system", "content": sys_msg}]
-    if args.log:
-        print(f"\n################## Starting Reviewing ##################\n")
-    write_log(f"\n***************** Gained Experience *****************\n")
-    write_log(f"{n_exp}")
-    write_log(f"\n################## Starting Reviewing ##################\n")
-    msg = [{"role": "system", "content": sys_msg}]
-    usr_msg = write_sum_temp(args, p_exp, n_exp, act_his)
-    if args.log:
-        print(f"Prompt Message = \n\n{usr_msg}")
-    write_log(f"Prompt Message = \n\n{usr_msg}")
-    msg.append({"role": "user", "content": usr_msg})
-    retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-    while True:
-        try:
-            rsp = openai.ChatCompletion.create(
-                model=gpt_map[args.gpt],
-                messages=msg,
-                temperature = args.temp, 
-                max_tokens = args.lim
-            )
-            c_exp = rsp["choices"][0]["message"]["content"]
-            break
-        except Exception as e:
-            if args.log:
-                print(f"Caught an error: {e}\n")
-            write_log(f"Caught an error: {e}\n")
-            time.sleep(retry_delay)
-            retry_delay *= 2  # double the delay each time we retry
-    if args.log:
-        print(f"\n***************** Summarized Experience *****************\n")
-        print(f"{c_exp}")
-    write_log(f"\n***************** Summarized Experience *****************\n")
-    write_log(f"{c_exp}")
-    return n_exp, p_exp, c_exp
-
-def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
-    n_env_rec = env_rec.copy()
-    n_obj_rec = obj_rec.copy()
-    # 1. Updating the env record
-    img = obs['image'].transpose(1,0,2)
-    if args.log:
-        print(f"\n################## Starting Updating ##################\n")
-    write_log(f"\n################## Starting Updating ##################\n")
-    # Update the env view record:
-    # These are the indexes to record the position in img
-    rel_x = 0
-    rel_y = 0
-    if obs['direction'] == 0:
-        img_rel = np.rot90(img, k = 1, axes = (0, 1))
-        for x in range(pos[0] - args.view // 2, pos[0] + args.view // 2 + 1):
-            for y in range(pos[1], pos[1] + args.view):
-                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
-                rel_y += 1
-            rel_y = 0
-            rel_x += 1
-        rel_x = 0
-    elif obs['direction'] == 1:
-        img_rel = np.rot90(img, k = 2, axes = (0, 1))
-        for x in range(pos[0], pos[0] + args.view):
-            for y in range(pos[1] - args.view // 2, pos[1] + args.view // 2 + 1):
-                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
-                rel_y += 1
-            rel_y = 0
-            rel_x += 1
-        rel_x = 0
-    elif obs['direction'] == 2:
-        img_rel = np.rot90(img, k = 3, axes = (0, 1))
-        for x in range(pos[0] - args.view // 2, pos[0] + args.view // 2 + 1):
-            for y in range(pos[1] - args.view + 1, pos[1] + 1):
-                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
-                rel_y += 1
-            rel_y = 0
-            rel_x += 1
-        rel_x = 0
-    elif obs['direction'] == 3:
-        img_rel = img.copy()
-        for x in range(pos[0] - args.view + 1, pos[0] + 1):
-            for y in range(pos[1] - args.view // 2, pos[1] + args.view // 2 + 1):
-                n_env_rec = update_view(args, img_rel, n_env_rec, env_id, x, y, rel_x, rel_y)
-                rel_y += 1
-            rel_y = 0
-            rel_x += 1
-        rel_x = 0
-
-    # Update the env step record:
-    n_env_rec[env_id][2][pos] = 1
-
-    # 2. Update the obj record
-
-    # Update the obj view record
-    for x in range(img.shape[0]):
-        for y in range(img.shape[1]):
-            n_obj_rec[env_id][0][img[x,y][0]] = 1
-
-    return n_env_rec, n_obj_rec
-
-# Function to update the view based on the observation
-def update_view(args, img_rel, env_rec, env_id, x, y, rel_x, rel_y):
-    if x >= 0 and x < env_rec[env_id][0].shape[0] and y >= 0 and y < env_rec[env_id][0].shape[1]:
+        gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
+        if args.goal:
+            sys_msg_s += "You will be prompted a goal in the environment.\n"
+        msg = [{"role": "system", "content": sys_msg_s}]
         if args.log:
-            print(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
-        write_log(f"Updating view at x = {x} and y = {y}\nIn relative image this is x = {rel_x} and y = {rel_y}\n")
-        if img_rel[rel_x,rel_y][0] != 0:
-            env_rec[env_id][0][x,y] = 1
-    return env_rec
+            print(f"Prompt Message = \n\n{sum_msg_s}")
+        write_log(f"Prompt Message = \n\n{sum_msg_s}")
+        msg.append({"role": "user", "content": sum_msg_s})
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+        while True:
+            try:
+                rsp = openai.ChatCompletion.create(
+                    model=gpt_map[args.gpt],
+                    messages=msg,
+                    temperature = args.temp, 
+                    max_tokens = args.lim
+                )
+                c_exp = rsp["choices"][0]["message"]["content"]
+                break
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
+        if args.log:
+            print(f"\n***************** Summarized Experience *****************\n")
+            print(f"{c_exp}")
+        write_log(f"\n***************** Summarized Experience *****************\n")
+        write_log(f"{c_exp}")
+        return c_exp
+
+# Update the position based on the arrow and previous position    
+def update_pos(pos_x, pos_y, arrow):
+    if arrow == "↑":
+        pos_x -= 1
+    elif arrow == "↓":
+        pos_x += 1
+    elif arrow == "←":
+        pos_y -= 1
+    elif arrow == "→":
+        pos_y += 1
+    return pos_x, pos_y
 
 # Function to update the records regarding exploration, it needs env_id to determine the environment, 
 # act to determine the interaction type, pos to determine the global position and obs to determine
@@ -1015,8 +872,6 @@ if __name__ == '__main__':
             config = vars(args)
         )
     
-    # index to record the action & label the image
-    act_idx = 0
 
     # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
     if args.all:
@@ -1068,19 +923,16 @@ if __name__ == '__main__':
         obs, state = env.reset(seed=args.seed)
          # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
         update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-        # env_rec, obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, obs, pos)
-        # if args.wandb:
-        #     dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
-        #     rec_table.add_data(str(env_rec[int(n_env_id)][0]), str(env_rec[int(n_env_id)][1]), 
-        #                        str(env_rec[int(n_env_id)][2]), str(pos), dir_dic[obs['direction']],
-        #                        "start", str(obj_rec[int(n_env_id)][0]), str(obj_rec[int(n_env_id)][1]))
-        
         # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
             # We get a new action, during which update the record tables
-            act = get_action(args, env_id, world_map, inv, act_his, obs, exp)
+            act, act_msg_s = get_action(args, env_id, world_map, inv, act_his, obs, exp)
             # We get the action from the act_hint, the act is a string format like "pick up"
             # With the new act, we convert it into the actions object
+            img_array = env.render()
+            img = Image.fromarray(img_array)
+            img.save(os.path.join(save_path, f"env_{i}_action_{str(j)}_{act}.png"))
+            
             if act == "left":
                 # We update the world map, env view, env memo, obj_view, act history, arrow
                 arrow = left_arrow(arrow)
@@ -1090,12 +942,53 @@ if __name__ == '__main__':
                 update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
+
+                if args.wandb:
+                    scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
+                    env_table.add_data(str(env_view_rec[env_id]), str(env_step_rec[env_id]), str(env_memo_rec[env_id]))
+                    obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
+                    world_map_table.add_data(str(world_map[env_id][0]), str(world_map[env_id][1]), str(world_map[env_id][2]))
+                
                 exp = c_exp
                 obs = n_obs
             elif act == "right":
+                arrow = right_arrow(arrow)
+                o_world_map = world_map.copy()
+                n_obs, reward, terminated, truncated, _ = env.step(Actions.right)
+                act_his.append(act)
+                update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
+                c_exp = sum_exp(args, n_exp, exp, act_his)
 
+                if args.wandb:
+                    scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
+                    env_table.add_data(str(env_view_rec[env_id]), str(env_step_rec[env_id]), str(env_memo_rec[env_id]))
+                    obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
+                    world_map_table.add_data(str(world_map[env_id][0]), str(world_map[env_id][1]), str(world_map[env_id][2]))
+                
+                exp = c_exp
+                obs = n_obs
             elif act == "forward":
+                o_world_map = world_map.copy()
+                n_obs, reward, terminated, truncated, _ = env.step(Actions.forward)
+                act_his.append(act)
+                if terminated:
+                    sys.exit()
+                else:
+                    if not np.array_equal(n_obs, obs):
+                        pos_x, pos_y = update_pos(pos_x, pos_y, arrow)
+                update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
+                c_exp = sum_exp(args, n_exp, exp, act_his)
 
+                if args.wandb:
+                    scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
+                    env_table.add_data(str(env_view_rec[env_id]), str(env_step_rec[env_id]), str(env_memo_rec[env_id]))
+                    obj_table.add_data(str(obj_intr_rec[env_id]), str(obj_view_rec[env_id]))
+                    world_map_table.add_data(str(world_map[env_id][0]), str(world_map[env_id][1]), str(world_map[env_id][2]))
+                
+                exp = c_exp
+                obs = n_obs
             elif act == "toggle":
 
             elif act == "drop off":
