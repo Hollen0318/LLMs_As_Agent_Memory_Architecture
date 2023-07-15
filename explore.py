@@ -65,12 +65,12 @@ def get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec
         return "forward"
     else:
         # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
-        with open(args.sys_msg, 'r') as file:
-            sys_temp = file.read()
-        sys_msg_s = sys_temp.format(str(args.refresh))
+        with open(args.sys_temp, 'r') as file:
+            sys_msg = file.read()
+        sys_msg_s = sys_msg.format(str(args.refresh))
         # Then we need the observation message, which we will fill the act_temp.txt
         with open(args.act_temp, 'r') as file:
-            act_temp = file.read()
+            act_msg = file.read()
         # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
         update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
         obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
@@ -84,9 +84,9 @@ def get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec
         act_his_s = ", ".join(act_his)
         if args.goal:
             goal = f"Your goal is {obs['mission']}"
-            act_msg = act_temp.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, goal)
+            act_msg_s = act_msg.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, goal)
         else:
-            act_msg = act_temp.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, "")
+            act_msg_s = act_msg.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, "")
         valid = [i for i in range(6)]
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
         if args.goal:
@@ -94,10 +94,10 @@ def get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec
         msg = [{"role": "system", "content": sys_msg_s}]
         fuc_msg = open(args.fuc_msg).read()
         fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
-        msg.append({"role": "user", "content": act_msg})
+        msg.append({"role": "user", "content": act_msg_s})
         if args.log:
-            print(f"Prompt message = {act_msg}")
-        write_log(act_msg)
+            print(f"Prompt message = {act_msg_s}")
+        write_log(act_msg_s)
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -141,22 +141,100 @@ def get_env_id_mapping(args):
     return id_mappings
 
 # Getting the experience based on two observation, action chosen and action history
-def get_exp(args, env_id, world_map, inv_o, act, obs, n_obs, world_map_c, inv, act_his):
+def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_inv, act_his):
     if args.log:
         print(f"\n################## Starting Reflection ##################\n")
     write_log(f"\n################## Starting Reflection ##################\n")
     if args.input:
         return "new experience"
     else:
-        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
-        with open(args.sys_msg, 'r') as file:
-            sys_temp = file.read()
-        sys_msg_s = sys_temp.format(str(args.refresh))
+        # To get an experience, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
+        with open(args.sys_temp, 'r') as file:
+            sys_msg = file.read()
+        sys_msg_s = sys_msg.format(str(args.refresh))
         # Then we need the observation message, which we will fill the act_temp.txt
         with open(args.refl_temp, 'r') as file:
-            refl_temp_s = file.read()
-        refl_temp_s
-
+            refl_msg = file.read()
+        obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
+        if o_inv == 0:
+            o_inv_s = f"You are not holding anything"
+        else:
+            o_inv_s = f"You are holding a {obj_idx[inv]}"
+        if n_inv == 0:
+            n_inv_s = f"You are not holding anything"
+        else:
+            n_inv_s = f"You are holding a {obj_idx[inv]}"
+        if args.goal:
+            o_goal = o_obs['mission']
+            n_goal = n_obs['mission']
+        else:
+            o_goal = ""
+            n_goal = ""
+        act_his_s = ", ".join(act_his) 
+        refl_msg_s = refl_msg.format(str(o_world_map[env_id][0]), str(o_world_map[env_id][1]), str(o_world_map[env_id][2]), o_inv_s, act, o_goal, str(n_world_map[env_id][0]), str(n_world_map[env_id][1]), str(n_world_map[env_id][2]), n_inv_s, n_goal, act_his_s, str(args.lim))
+        gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
+        sys_msg = open(args.sys_msg).read()
+        if args.goal:
+            sys_msg += "You will be prompted a goal in the environment.\n"
+        msg = [{"role": "system", "content": sys_msg}]
+        usr_msg = reflect_hint
+        if args.log:
+            print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
+        msg.append({"role": "user", "content": usr_msg})
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+        while True:
+            try:
+                rsp = openai.ChatCompletion.create(
+                    model = gpt_map[args.gpt],
+                    messages = msg,
+                    temperature = args.temp, 
+                    max_tokens = args.lim
+                )
+                n_exp = rsp["choices"][0]["message"]["content"]
+                break
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
+        if args.log:
+            print(f"\n***************** Gained Experience *****************\n")
+            print(f"{n_exp}")
+            print(f"\n################## Starting Reviewing ##################\n")
+        write_log(f"\n***************** Gained Experience *****************\n")
+        write_log(f"{n_exp}")
+        write_log(f"\n################## Starting Reviewing ##################\n")
+        msg = [{"role": "system", "content": sys_msg}]
+        usr_msg = write_sum_temp(args, p_exp, n_exp, act_his)
+        if args.log:
+            print(f"Prompt Message = \n\n{usr_msg}")
+        write_log(f"Prompt Message = \n\n{usr_msg}")
+        msg.append({"role": "user", "content": usr_msg})
+        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+        while True:
+            try:
+                rsp = openai.ChatCompletion.create(
+                    model=gpt_map[args.gpt],
+                    messages=msg,
+                    temperature = args.temp, 
+                    max_tokens = args.lim
+                )
+                c_exp = rsp["choices"][0]["message"]["content"]
+                break
+            except Exception as e:
+                if args.log:
+                    print(f"Caught an error: {e}\n")
+                write_log(f"Caught an error: {e}\n")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # double the delay each time we retry
+    if args.log:
+        print(f"\n***************** Summarized Experience *****************\n")
+        print(f"{c_exp}")
+    write_log(f"\n***************** Summarized Experience *****************\n")
+    write_log(f"{c_exp}")
+    return n_exp, p_exp, c_exp
 # Getting the experience based on two text description and past actions 
 def get_exp(args, reflect_hint, p_exp, act_his):
     if args.log:
@@ -699,7 +777,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--act-temp",
-        default = "./utilities/act_temp.txt",
+        default = "./utilities/act_msg.txt",
         type = str,
         help = "the location to load your action prompt message template"
     )
@@ -713,7 +791,7 @@ if __name__ == '__main__':
         "--envs",
         nargs = "+",
         help = "list of environment names, see the ./utilities/envs_mapping.txt for mapping between index and env",
-        default = ["1"]
+        default = ["0"]
     )
     parser.add_argument(
         "--env-id-maps",
@@ -786,7 +864,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--refl-temp",
-        default = "./utilities/refl_temp.txt",
+        default = "./utilities/refl_msg.txt",
         type = str,
         help = "the location to load your reflect prompt message template"
     )
@@ -798,7 +876,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--rpt-temp",
-        default = "./utilities/rpt_temp.txt",
+        default = "./utilities/rpt_msg.txt",
         type = str,
         help = "the location to load your exploration report template format"
     )
@@ -833,12 +911,12 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--sum-temp",
-        default = "./utilities/sum_temp.txt",
+        default = "./utilities/sum_msg.txt",
         type = str,
         help = "the location to load your summarization prompt message template"
     )
     parser.add_argument(
-        "--sys-msg",
+        "--sys-temp",
         type = str,
         default = "./utilities/sys_msg.txt",
         help = "the location to load your hint message as agent's system background"
@@ -963,12 +1041,12 @@ if __name__ == '__main__':
                     arrow = "↓"
                 elif arrow == "→":
                     arrow = "↑"
-                world_map_c = world_map.copy()
+                o_world_map = world_map.copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.left)
-                inv_o = inv
                 act_his.append(act)
                 update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-                n_exp = get_exp(args, env_id, world_map, inv_o, act, obs, n_obs, world_map_c, inv, act_his)
+                n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
+
             elif act == "right":
 
             elif act == "forward":
