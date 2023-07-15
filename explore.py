@@ -910,7 +910,11 @@ if __name__ == '__main__':
 
                 # We update the world map, env view, env memo, obj_view, act history, arrow
                 arrow = left_arrow(arrow)
-                o_world_map = world_map.copy()
+                o_world_map = {}
+                o_world_map[env_id] = world_map[env_id].copy()
+                o_world_map[env_id][0] = world_map[env_id][0].copy()
+                o_world_map[env_id][1] = world_map[env_id][1].copy()
+                o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.left)
                 act_his.append(act)
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
@@ -923,7 +927,11 @@ if __name__ == '__main__':
             elif act == "right":
 
                 arrow = right_arrow(arrow)
-                o_world_map = world_map.copy()
+                o_world_map = {}
+                o_world_map[env_id] = world_map[env_id].copy()
+                o_world_map[env_id][0] = world_map[env_id][0].copy()
+                o_world_map[env_id][1] = world_map[env_id][1].copy()
+                o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.right)
                 act_his.append(act)
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
@@ -969,8 +977,11 @@ if __name__ == '__main__':
                 pos_y = n_pos_y
 
             elif act == "toggle":
-
-                o_world_map = world_map.copy()
+                o_world_map = {}
+                o_world_map[env_id] = world_map[env_id].copy()
+                o_world_map[env_id][0] = world_map[env_id][0].copy()
+                o_world_map[env_id][1] = world_map[env_id][1].copy()
+                o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.toggle)
                 act_his.append(act)
                 if terminated:
@@ -997,7 +1008,11 @@ if __name__ == '__main__':
                 obs = n_obs
 
             elif act == "drop off":
-                o_world_map = world_map.copy()
+                o_world_map = {}
+                o_world_map[env_id] = world_map[env_id].copy()
+                o_world_map[env_id][0] = world_map[env_id][0].copy()
+                o_world_map[env_id][1] = world_map[env_id][1].copy()
+                o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.drop)
                 act_his.append(act)
                 if terminated:
@@ -1028,7 +1043,11 @@ if __name__ == '__main__':
                 inv = n_inv
                 
             elif act == "pick up":
-                o_world_map = world_map.copy()
+                o_world_map = {}
+                o_world_map[env_id] = world_map[env_id].copy()
+                o_world_map[env_id][0] = world_map[env_id][0].copy()
+                o_world_map[env_id][1] = world_map[env_id][1].copy()
+                o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.pickup)
                 act_his.append(act)
                 if terminated:
@@ -1092,6 +1111,9 @@ if __name__ == '__main__':
                 wandb.log(metrics)
                 wandb.log(metrics_df.iloc[-1].to_dict())
 
+            # We refresh the action history every args.refresh run to avoid too large action space
+            if len(act_his) >= args.refresh:
+                act_his = act_his[1:]
 
         # Environment close() due to all steps finished      
         env.close()
