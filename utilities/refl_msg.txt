@@ -47,8 +47,9 @@ New observation is:
 Your past actions are {}
 
 Describe what you have seen before and now?
-What are their differences, in terms of object, color, status?
+What are their differences, in terms of object, color, status? 
 What areas are changed, changed into what? 
+Some changes like turn into unseen "-" is due to forgotten, some are due to your other actions.
 What new action will you do to explore the world as much as you can?
 Have you tried diverse & various actions to explore the world?
 What you learned about the object in front of you, and your action's effects?

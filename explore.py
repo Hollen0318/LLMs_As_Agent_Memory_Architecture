@@ -128,7 +128,7 @@ def get_action(args, env_id, world_map, inv, act_his, obs, exp):
                             act = fuc_c(
                                 action = fuc_args.get("action")
                             )
-                break
+                            break
             except Exception as e:
                 if args.log:
                     print(f"Caught an error: {e}\n")
