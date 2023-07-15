@@ -723,7 +723,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--refresh",
         type = int,
-        default = 20,
+        default = 6,
         help = "the maximum number of action history"
     )
     parser.add_argument(
@@ -898,7 +898,7 @@ if __name__ == '__main__':
         
         img_array = env.render()
         img = Image.fromarray(img_array)
-        img.save(os.path.join(save_path, f"env_{i}_action_start.png"))
+        img.save(os.path.join(save_path, f"env_{i}_action_0_start.png"))
 
         for j in range(args.steps):
             # We get a new action, during which update the record tables
@@ -942,8 +942,16 @@ if __name__ == '__main__':
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.forward)
                 act_his.append(act)
                 if terminated:
+                    # For each new environment, the inventory is always 0
+                    inv = 0
+                    # For every new environment, the action history is always 0 (empty)
+                    act_his = []
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
                     pos_x, pos_y, arrow = pos_m[env_id]
-                    sys.exit()
+                    # Initilize the environment
+                    obs, state = env.reset(seed=args.seed)
+                    # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
@@ -966,8 +974,16 @@ if __name__ == '__main__':
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.toggle)
                 act_his.append(act)
                 if terminated:
+                    # For each new environment, the inventory is always 0
+                    inv = 0
+                    # For every new environment, the action history is always 0 (empty)
+                    act_his = []
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
                     pos_x, pos_y, arrow = pos_m[env_id]
-                    sys.exit()
+                    # Initilize the environment
+                    obs, state = env.reset(seed=args.seed)
+                    # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
                 if args.log:
                     print(f"The front object being interacted with is {front_obj}")
@@ -985,8 +1001,16 @@ if __name__ == '__main__':
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.drop)
                 act_his.append(act)
                 if terminated:
+                    # For each new environment, the inventory is always 0
+                    inv = 0
+                    # For every new environment, the action history is always 0 (empty)
+                    act_his = []
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
                     pos_x, pos_y, arrow = pos_m[env_id]
-                    sys.exit()
+                    # Initilize the environment
+                    obs, state = env.reset(seed=args.seed)
+                    # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = 0
@@ -1008,8 +1032,16 @@ if __name__ == '__main__':
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.pickup)
                 act_his.append(act)
                 if terminated:
+                    # For each new environment, the inventory is always 0
+                    inv = 0
+                    # For every new environment, the action history is always 0 (empty)
+                    act_his = []
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
                     pos_x, pos_y, arrow = pos_m[env_id]
-                    sys.exit()
+                    # Initilize the environment
+                    obs, state = env.reset(seed=args.seed)
+                    # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = get_n_inv(args, n_obs, obs)
@@ -1030,7 +1062,7 @@ if __name__ == '__main__':
 
             img_array = env.render()
             img = Image.fromarray(img_array)
-            img.save(os.path.join(save_path, f"env_{i}_action_{str(j)}_{act}.png"))
+            img.save(os.path.join(save_path, f"env_{i}_action_{str(j+1)}_{act}.png"))
 
             if args.wandb:
                 scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
@@ -1041,7 +1073,7 @@ if __name__ == '__main__':
             env_view_ratio, env_step_ratio, env_memo_ratio, obj_intr_ratio, obj_view_ratio = get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec)
 
             # Log the data to the dataframe
-            scn_table_df.loc[len(scn_table_df)] = [wandb.Image(img), act_msg_s, act, n_exp, c_exp]
+            scn_table_df.loc[len(scn_table_df)] = [str(img), act_msg_s, act, n_exp, c_exp]
             env_table_df.loc[len(env_table_df)] = [str(env_view_rec[env_id]).replace(".", ""), str(env_step_rec[env_id]).replace(".", ""), str(env_memo_rec[env_id]).replace(".", "")]
             obj_table_df.loc[len(obj_table_df)] = [str(obj_intr_rec[env_id]), str(obj_view_rec[env_id])]
             world_map_table_df.loc[len(world_map_table_df)] = [str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", "")]

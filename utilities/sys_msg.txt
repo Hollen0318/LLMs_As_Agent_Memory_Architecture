@@ -93,5 +93,9 @@ Observations will be composed of the following items:
     You have the above experience to guide yourself to explore the world as much as you can.
 
 Remember all these examples are just for your reference, your real observation will be provided to you later with a similar format.
-Remember during exploration you will forget past scenes so stucking at corner will lose past memory about the world map.
-It's a small and enclosed world so if no change in world map, you are likely to be stuck. 
+Remember during exploration you will forget past scenes so get stuck at the corner will lose past memory about the world map.
+It's a small and enclosed world so if no change in the world map, you are likely to be stuck. 
+Remember you can only interact with the single object right in front of you with actions like "toggle", "drop off", and "pick up". 
+What object you can "toggle", "pick up" and "drop off" is going to be learned from your exploration. 
+Your inventory status also affects how you can interact with objects.
+Pay attention to your world map observation as it includes your position, direction and environment layout.  
