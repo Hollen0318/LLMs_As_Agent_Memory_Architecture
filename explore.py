@@ -54,7 +54,7 @@ def describe_location(diff_x, diff_y):
     return description
 
 
-def get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs, exp):
+def get_action(args, env_id, world_map, inv, act_his, obs, exp):
     if args.log:
         print(f"\n################## Starting Deciding ##################\n")
     write_log(f"\n################## Starting Deciding ##################\n")
@@ -71,8 +71,6 @@ def get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec
         # Then we need the observation message, which we will fill the act_temp.txt
         with open(args.act_temp, 'r') as file:
             act_msg = file.read()
-        # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-        update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
         obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
         col_map_s = np.array2string(world_map[env_id][1]).replace("'", "").replace("\"","")
         sta_map_s = np.array2string(world_map[env_id][2]).replace("'", "").replace("\"","")
@@ -202,8 +200,10 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
             print(f"{n_exp}")
         write_log(f"\n***************** Gained Experience *****************\n")
         write_log(f"{n_exp}")
+
+        return n_exp
         
-        
+
 # Getting the experience based on two text description and past actions 
 def get_exp(args, reflect_hint, p_exp, act_his):
     if args.log:
@@ -409,6 +409,86 @@ def get_world_maps(args):
         world_map[env_id][2] = np.full((h, w), "-", dtype = str)
 
     return world_map
+
+def left_arrow(arrow):
+    r_arrow = ""
+    if arrow == "↑":
+        r_arrow = "←"
+    elif arrow == "↓":
+        r_arrow = "→"
+    elif arrow == "←":
+        r_arrow = "↓"
+    elif arrow == "→":
+        r_arrow = "↑"
+    return r_arrow
+
+def right_arrow(arrow):
+    r_arrow = ""
+    if arrow == "↑":
+        r_arrow = "→"
+    elif arrow == "↓":
+        r_arrow = "←"
+    elif arrow == "←":
+        r_arrow = "↑"
+    elif arrow == "→":
+        r_arrow = "↓"
+    return r_arrow
+
+def sum_exp(args, n_exp, o_exp, act_his):
+    if args.log:
+        print(f"\n################## Starting Summarizing ##################\n")
+    write_log(f"\n################## Starting Summarizing ##################\n")
+    if args.input:
+        return "summarized experience"
+    else:
+        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
+        with open(args.sys_temp, 'r') as file:
+            sys_msg = file.read()
+        sys_msg_s = sys_msg.format(str(args.refresh))
+        # Then we need the observation message, which we will fill the act_temp.txt
+        act_his_s = ", ".join(act_his)
+        with open(args.sum_temp, 'r') as file:
+            sum_msg = file.read()
+        sum_msg_s = sum_msg.format(o_exp, n_exp, act_his_s, str(args.lim))
+    gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
+    sys_msg = open(args.sys_msg).read()
+    if args.goal:
+        sys_msg += "You will be prompted a goal in the environment.\n"
+    msg = [{"role": "system", "content": sys_msg}]
+    if args.log:
+        print(f"\n################## Starting Reviewing ##################\n")
+    write_log(f"\n***************** Gained Experience *****************\n")
+    write_log(f"{n_exp}")
+    write_log(f"\n################## Starting Reviewing ##################\n")
+    msg = [{"role": "system", "content": sys_msg}]
+    usr_msg = write_sum_temp(args, p_exp, n_exp, act_his)
+    if args.log:
+        print(f"Prompt Message = \n\n{usr_msg}")
+    write_log(f"Prompt Message = \n\n{usr_msg}")
+    msg.append({"role": "user", "content": usr_msg})
+    retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+    while True:
+        try:
+            rsp = openai.ChatCompletion.create(
+                model=gpt_map[args.gpt],
+                messages=msg,
+                temperature = args.temp, 
+                max_tokens = args.lim
+            )
+            c_exp = rsp["choices"][0]["message"]["content"]
+            break
+        except Exception as e:
+            if args.log:
+                print(f"Caught an error: {e}\n")
+            write_log(f"Caught an error: {e}\n")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # double the delay each time we retry
+    if args.log:
+        print(f"\n***************** Summarized Experience *****************\n")
+        print(f"{c_exp}")
+    write_log(f"\n***************** Summarized Experience *****************\n")
+    write_log(f"{c_exp}")
+    return n_exp, p_exp, c_exp
 
 def link_rec_obs(args, env_id, env_rec, obj_rec, obs, pos):
     n_env_rec = env_rec.copy()
@@ -986,7 +1066,8 @@ if __name__ == '__main__':
 
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
-
+         # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
+        update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
         # env_rec, obj_rec = link_rec_obs(args, int(n_env_id), env_rec, obj_rec, obs, pos)
         # if args.wandb:
         #     dir_dic = {0: 'east', 1: 'south', 2: 'west', 3: 'north'}
@@ -997,25 +1078,20 @@ if __name__ == '__main__':
         # Iterate the agent exploration within the limit of args.steps
         for j in range(args.steps):
             # We get a new action, during which update the record tables
-            act = get_action(args, env_id, world_map, env_view_rec, env_step_rec, env_memo_rec, obj_view_rec, inv, act_his, pos_x, pos_y, arrow, obs, exp)
+            act = get_action(args, env_id, world_map, inv, act_his, obs, exp)
             # We get the action from the act_hint, the act is a string format like "pick up"
             # With the new act, we convert it into the actions object
             if act == "left":
                 # We update the world map, env view, env memo, obj_view, act history, arrow
-                if arrow == "↑":
-                    arrow = "←"
-                elif arrow == "↓":
-                    arrow = "→"
-                elif arrow == "←":
-                    arrow = "↓"
-                elif arrow == "→":
-                    arrow = "↑"
+                arrow = left_arrow(arrow)
                 o_world_map = world_map.copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.left)
                 act_his.append(act)
                 update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
-
+                c_exp = sum_exp(args, n_exp, exp, act_his)
+                exp = c_exp
+                obs = n_obs
             elif act == "right":
 
             elif act == "forward":
