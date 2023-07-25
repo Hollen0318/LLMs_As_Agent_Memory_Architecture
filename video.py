@@ -31,13 +31,13 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--image-dir",
-        default = r"C:\Users\holle\OneDrive - Duke University\LLM_As_Agent\INPUT\0\goal_False_gpt_3_lim_1000_memo_5_refresh_6_seed_23_static_False_steps_50_temp_0.7_view_7\2023-07-15 18-36-17",
+        default = r"C:\Users\holle\OneDrive - Duke University\LLM_As_Agent\GPT\0\goal_False_gpt_3_lim_100_memo_30_refresh_6_seed_23_static_False_steps_1000_temp_0.9_view_7\2023-07-17 14-58-21",
         type = str,
         help = "the location to load screenshot image folder"
     )
     parser.add_argument(
         "--fps",
-        default = 20.0,
+        default = 10.0,
         type = float,
         help = "fps"
     )
@@ -110,20 +110,19 @@ if __name__ == '__main__':
         # draw.text((0, args.image_size[1] * 3.0), "5. object intr ratio {:.3f}%".format(metrics_df['obj_intr_ratio'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', ratio_font_size))
         draw.text((args.video_size[0] / 3, args.image_size[1] + 50), f"Gained experience = ", fill='black', font = ImageFont.truetype('arial.ttf', 40))
         # # Use function
-        wrapped_text = wrap_text(scn_table_df['C_exp'][idx], 100)
-
+        wrapped_text = wrap_text(str(scn_table_df['C_exp'][idx]).replace("\n", ""), 130)
+        # print(f"\n\n############################### the experience is ###############################\n\n{scn_table_df['C_exp'][idx]}")
         # Loop over wrapped text (each line)
         y0, dy = args.image_size[1] + 100, 50  # y0 - initial y value, dy - offset on y axis for new line
         for i, line in enumerate(wrapped_text):
             y = y0 + i*dy
-            draw.text((args.video_size[0] / 3, y), line, fill='black', font = ImageFont.truetype('arial.ttf', 40))
+            draw.text((args.video_size[0] / 3, y), line, fill='black', font = ImageFont.truetype('arial.ttf', 30))
         # Convert the image to BGR color (which is the format OpenCV uses)
         frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
-
+        print(f"*********************************finishing the image # {str(idx)} *********************************")
         out.write(frame)  # write the frame
         img.close()  # close the image file
-        
-        if idx < 49:
+        if idx < 999:
             idx += 1
     out.release()
     print(f"The video was successfully created at \n{str(os.path.join(save_path, args.video_name))}")
