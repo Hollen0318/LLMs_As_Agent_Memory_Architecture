@@ -1,7 +1,7 @@
 GPT/
 INPUT/
-utilities/API/API_1
-utilities/API/API_2
+utilities/API
 wandb/
 draft.ipynb
 draft.py
+try.py

@@ -1033,7 +1033,7 @@ if __name__ == '__main__':
                 if args.log:
                     print(f"The front object being interacted with is {front_obj}")
                 write_log(save_path, f"The front object being interacted with is {front_obj}")
-                obj_intr_rec[env_id][0][front_obj] += 1
+                obj_intr_rec[env_id][1][front_obj] += 1
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
@@ -1070,7 +1070,7 @@ if __name__ == '__main__':
                 if args.log:
                     print(f"The front object being interacted with is {front_obj}")
                 write_log(save_path, f"The front object being interacted with is {front_obj}")
-                obj_intr_rec[env_id][0][front_obj] += 1
+                obj_intr_rec[env_id][2][front_obj] += 1
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
