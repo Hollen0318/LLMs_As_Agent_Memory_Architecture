@@ -11,8 +11,6 @@ import wandb
 import time
 from PIL import Image
 import json
-import sys
-import pyautogui
 import numpy as np
 
 # Function to return what GPT returns in sring format
@@ -36,24 +34,6 @@ def cvt_act(args, inv, act, fro_obj_l):
         inv = 0
 
     return inv, act_obj
-
-# Describe the relative location based on the diff_x and diff_y, where the positve values
-# means at the front or on the right by default
-def describe_location(diff_x, diff_y):
-    """Returns a description of a location based on the relative coordinates."""
-    description = ""
-    # Describe the front/back direction
-    if diff_y >= 0:
-        description += f"{abs(diff_y)} step(s) in front of you"
-    elif diff_y < 0:
-        description += f"{abs(diff_y)} step(s) in back of you"
-    # Describe the left/right direction
-    if diff_x > 0:
-        description += f" and {abs(diff_x)} step(s) to your left"
-    elif diff_x <= 0:
-        description += f" and {abs(diff_x)} step(s) to your right"
-    return description
-
 
 def get_action(args, env_id, world_map, inv, act_his, obs, exp):
     global save_path
