@@ -31,7 +31,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--image-dir",
-        default = r"C:\Users\holle\OneDrive - Duke University\LLM_As_Agent\GPT\0\goal_False_gpt_3_lim_100_memo_30_refresh_6_seed_23_static_False_steps_1000_temp_0.9_view_7\2023-07-17 14-58-21",
+        default = r"C:\Users\holle\OneDrive - Duke University\LLM_As_Agent\GPT\0\goal_False_gpt_4_lim_200_memo_5_refresh_6_seed_23_static_False_steps_1000_temp_0.9_view_7\2023-07-26 00-45-15  ",
         type = str,
         help = "the location to load screenshot image folder"
     )
