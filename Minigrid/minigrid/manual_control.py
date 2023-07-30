@@ -101,11 +101,9 @@ if __name__ == "__main__":
         help="set the number of grid spaces visible in agent-view ",
     )
     parser.add_argument(
-        "--env-id",
-        type=str,
-        help="gym environment to load",
-        choices=gym.envs.registry.keys(),
-        default="MiniGrid-MultiRoom-N6-v0",
+        "--all",
+        action = "store_true",
+        help = "to load all the environments if given",
     )
     parser.add_argument(
         "--env-id-maps",
@@ -137,7 +135,10 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
-        "--tile-size", type=int, help="size at which to render tiles", default=32
+        "--tile-size", 
+        type=int, 
+        help="size at which to render tiles", 
+        default=32
     )
     parser.add_argument(
         "--prj-name",
@@ -161,19 +162,25 @@ if __name__ == "__main__":
 
     envs_id_mapping = get_env_id_mapping(args)
 
-    env_name = envs_id_mapping[int(args.envs[0])]
-    
-    env: MiniGridEnv = gym.make(
-        env_name,
-        tile_size=args.tile_size,
-        render_mode="human",
-        agent_view_size=args.agent_view_size,
-        screen_size=args.screen_size,
-    )
+    # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
+    if args.all:
+        args.envs = [str(i) for i in range(61)]
 
-    if args.rgb_view:
-        env = RGBImgPartialObsWrapper(env, args.tile_size)
-    # env = ImgObsWrapper(env)
+    for i in args.envs:
+        env_id = int(i)
+        # For each new environment, the inventory is always 0
+        inv = 0
+        # For every new environment, the action history is always 0 (empty)
+        act_his = []
+        # Get environment name from the mapping
+        env_name = envs_id_mapping[env_id]
 
-    manual_control = ManualControl(env, seed=args.seed)
-    manual_control.start()
+        env: MiniGridEnv = gym.make(
+            id = env_name,
+            render_mode = "human",
+            agent_view_size = args.view,
+            screen_size = args.screen
+        )
+
+        manual_control = ManualControl(env, seed=args.seed)
+        manual_control.start()
