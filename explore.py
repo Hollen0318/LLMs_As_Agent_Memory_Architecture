@@ -615,7 +615,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--API-key",
-        default = "./utilities/API/API_1",
+        default = "./utilities/API/API_KEY",
         type = str,
         help = "the location to load your OpenAI API Key"
     )
