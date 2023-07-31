@@ -189,7 +189,7 @@ if __name__ == "__main__":
 
     # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
     if args.all:
-        args.envs = [str(i) for i in range(58)]
+        args.envs = [str(i) for i in range(57)]
 
     for i in args.envs:
         print(f"loading environment #{i}")

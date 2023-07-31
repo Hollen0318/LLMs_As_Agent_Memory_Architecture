@@ -50,9 +50,8 @@
 49, MiniGrid-MemoryS11-v0
 50, MiniGrid-MultiRoom-N6-v0
 51, MiniGrid-ObstructedMaze-Full-v1
-52, MiniGrid-ObstructedMaze-Full-v1
-53, MiniGrid-PutNear-6x6-N2-v0
-54, MiniGrid-PutNear-8x8-N3-v0
-55, MiniGrid-RedBlueDoors-6x6-v0
-56, MiniGrid-RedBlueDoors-8x8-v0
-57, MiniGrid-Unlock-v0
+52, MiniGrid-PutNear-6x6-N2-v0
+53, MiniGrid-PutNear-8x8-N3-v0
+54, MiniGrid-RedBlueDoors-6x6-v0
+55, MiniGrid-RedBlueDoors-8x8-v0
+56, MiniGrid-Unlock-v0
