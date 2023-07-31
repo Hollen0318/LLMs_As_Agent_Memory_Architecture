@@ -159,7 +159,7 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
             o_goal = ""
             n_goal = ""
         act_his_s = ", ".join(act_his) 
-        refl_msg_s = refl_msg.format(str(o_world_map[env_id][0]).replace("'", ""), str(o_world_map[env_id][1]).replace("'", ""), str(o_world_map[env_id][2]).replace("'", ""), o_inv_s, act, o_goal, str(n_world_map[env_id][0]).replace("'", ""), str(n_world_map[env_id][1]).replace("'", ""), str(n_world_map[env_id][2]).replace("'", ""), n_inv_s, n_goal, act_his_s, str(args.lim))
+        refl_msg_s = refl_msg.format(str(o_world_map[env_id][0]).replace("'", ""), str(o_world_map[env_id][1]).replace("'", ""), str(o_world_map[env_id][2]).replace("'", ""), o_inv_s, act, o_goal, str(n_world_map[env_id][0]).replace("'", ""), str(n_world_map[env_id][1]).replace("'", ""), str(n_world_map[env_id][2]).replace("'", ""), n_inv_s, n_goal, act_his_s, str(args.lim * (env_id + 1) / len(args.envs)))
         gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
         if args.goal:
             sys_msg_s += "You will be prompted a goal in the environment.\n"
@@ -175,7 +175,7 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
                     model = gpt_map[args.gpt],
                     messages = msg,
                     temperature = args.temp, 
-                    max_tokens = args.lim
+                    max_tokens = args.lim * (env_id + 1) / len(args.envs)
                 )
                 n_exp = rsp["choices"][0]["message"]["content"]
                 break
@@ -194,13 +194,13 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
         return n_exp
 
 def get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow):
-    if arrow == "↑":
+    if arrow == "Up":
         return int(world_map[env_id][0][pos_x - 1][pos_y])
-    elif arrow == "↓":
+    elif arrow == "Down":
         return int(world_map[env_id][0][pos_x + 1][pos_y])
-    elif arrow == "←":
+    elif arrow == "Left":
         return int(world_map[env_id][0][pos_x][pos_y - 1])
-    elif arrow == "→":
+    elif arrow == "Right":
         return int(world_map[env_id][0][pos_x][pos_y + 1])
 
 # Get the new inventory based on difference between o_obs and n_obs
@@ -218,7 +218,7 @@ def get_path(args):
     else:
         dir_n = "GPT"
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+    timestamp = datetime.now().strftime("%Y-%m-%Down %H-%M-%S")
     if args.all:
         env_names = "ALL"
     else:
@@ -320,26 +320,26 @@ def get_world_maps(args):
 
 def left_arrow(arrow):
     r_arrow = ""
-    if arrow == "↑":
-        r_arrow = "←"
-    elif arrow == "↓":
-        r_arrow = "→"
-    elif arrow == "←":
-        r_arrow = "↓"
-    elif arrow == "→":
-        r_arrow = "↑"
+    if arrow == "Up":
+        r_arrow = "Left"
+    elif arrow == "Down":
+        r_arrow = "Right"
+    elif arrow == "Left":
+        r_arrow = "Down"
+    elif arrow == "Right":
+        r_arrow = "Up"
     return r_arrow
 
 def right_arrow(arrow):
     r_arrow = ""
-    if arrow == "↑":
-        r_arrow = "→"
-    elif arrow == "↓":
-        r_arrow = "←"
-    elif arrow == "←":
-        r_arrow = "↑"
-    elif arrow == "→":
-        r_arrow = "↓"
+    if arrow == "Up":
+        r_arrow = "Right"
+    elif arrow == "Down":
+        r_arrow = "Left"
+    elif arrow == "Left":
+        r_arrow = "Up"
+    elif arrow == "Right":
+        r_arrow = "Down"
     return r_arrow
 
 def sum_exp(args, n_exp, o_exp, act_his):
@@ -394,13 +394,13 @@ def sum_exp(args, n_exp, o_exp, act_his):
 # Update the position based on the arrow and previous position    
 def update_pos(pos_x, pos_y, arrow):
     n_pos_x, n_pos_y = pos_x, pos_y
-    if arrow == "↑":
+    if arrow == "Up":
         n_pos_x -= 1
-    elif arrow == "↓":
+    elif arrow == "Down":
         n_pos_x += 1
-    elif arrow == "←":
+    elif arrow == "Left":
         n_pos_y -= 1
-    elif arrow == "→":
+    elif arrow == "Right":
         n_pos_y += 1
     return n_pos_x, n_pos_y
 
@@ -444,7 +444,7 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
 def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec):
     global save_path
     # With the new obs, we should first update the env_memo_rec, as it will determine which parts of world map will show
-    if arrow == "→":
+    if arrow == "Right":
         # It means the agent is facing right, so we update the env_memo_rec accordingly, specifically we 
         # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
         # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
@@ -470,6 +470,7 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                     world_map[env_id][2][row][col] = str(sta_name)
                 obj_view_rec[env_id][obj_name] += 1
                 if row == pos_x and col == pos_y:
+                    # p_obj, p_col, p_sta is the obj, col, sta in the current position, because it will be replace by the arrow, we record it here to be used when the agent move forward and restore it
                     p_obj, p_col, p_sta = world_map[env_id][0][row][col], world_map[env_id][1][row][col], world_map[env_id][2][row][col]
         world_map[env_id][0][pos_x][pos_y] = arrow
         world_map[env_id][1][pos_x][pos_y] = arrow
@@ -478,7 +479,7 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
-    elif arrow == "↑":
+    elif arrow == "Up":
         # It means the agent is facing north, so we update the env_memo_rec accordingly, specifically we 
         # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
         # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
@@ -512,7 +513,7 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
-    elif arrow == "↓":
+    elif arrow == "Down":
         # It means the agent is facing south, so we update the env_memo_rec accordingly, specifically we 
         # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
         # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
@@ -546,7 +547,7 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
-    elif arrow == "←":
+    elif arrow == "Left":
         # It means the agent is facing right, so we update the env_memo_rec accordingly, specifically we 
         # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
         # In addition we increment one to the env_view_rec which is basically recording how many times agent has seen that area
@@ -580,6 +581,7 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
         # env_memo_rec[env_id][pos_x][pos_y] = args.memo
+    # We update all the positions to -, and return the last position so can be used in the experience comparison
     for row in range(env_memo_rec[env_id].shape[0]):
         for col in range(env_memo_rec[env_id].shape[1]):
             if env_memo_rec[env_id][row][col] == 0:
@@ -797,7 +799,7 @@ if __name__ == '__main__':
     if args.wandb:
         wandb.init(
             project = args.prj_name,
-            name = datetime.now().strftime("Run %Y-%m-%d %H:%M:%S"),
+            name = datetime.now().strftime(r"Run %Y-%m-%d %H:%M:%S"),
             config = vars(args)
         )
     
@@ -821,7 +823,7 @@ if __name__ == '__main__':
     env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(args)
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
-    # Get the position mapping for all environments, which include the x, y (in integer) and the direction → string
+    # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
     pos_m = get_pos_m(args)
     # Iterate over all the environment
     for i in args.envs:
@@ -831,7 +833,7 @@ if __name__ == '__main__':
         inv = 0
         # For every new environment, the action history is always 0 (empty)
         act_his = []
-        # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
+        # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
         pos_x, pos_y, arrow = pos_m[env_id]
         # Get environment name from the mapping
         env_name = envs_id_mapping[env_id]
@@ -867,7 +869,7 @@ if __name__ == '__main__':
 
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
-         # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
+        # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
         p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
         # Iterate the agent exploration within the limit of args.steps
         if args.wandb:
@@ -879,6 +881,7 @@ if __name__ == '__main__':
         img_array = env.render()
         img = Image.fromarray(img_array)
         img.save(os.path.join(save_path, f"env_{i}_action_0_start.png"))
+
 
         for j in range(args.steps):
             # We get a new action, during which update the record tables
@@ -932,14 +935,26 @@ if __name__ == '__main__':
                 if terminated:
                     # For each new environment, the inventory is always 0
                     inv = 0
-                    # For every new environment, the action history is always 0 (empty)
-                    act_his = []
-                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
-                    pos_x, pos_y, arrow = pos_m[env_id]
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
+                    n_pos_x, n_pos_y, n_arrow = pos_m[env_id]
                     # Initilize the environment
                     obs, state = env.reset(seed=args.seed)
+                    front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+                    world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                     # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    if front_obj == "8":
+                        n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                    elif front_obj == "9":
+                        n_exp = "You touched a lava and dead, respawn at the start place, try again!"
+                    elif front_obj == "6":
+                        n_exp = "You are killed stepping towards this ball"
+                    c_exp = sum_exp(args, n_exp, exp, act_his)
+                    exp = c_exp
+                    pos_x = n_pos_x
+                    pos_y = n_pos_y
+                    arrow = n_arrow
+                    continue
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
@@ -967,14 +982,21 @@ if __name__ == '__main__':
                 if terminated:
                     # For each new environment, the inventory is always 0
                     inv = 0
-                    # For every new environment, the action history is always 0 (empty)
-                    act_his = []
-                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
-                    pos_x, pos_y, arrow = pos_m[env_id]
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
+                    n_pos_x, n_pos_y, n_arrow = pos_m[env_id]
                     # Initilize the environment
                     obs, state = env.reset(seed=args.seed)
+                    front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+                    world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                     # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                    c_exp = sum_exp(args, n_exp, exp, act_his)
+                    exp = c_exp
+                    pos_x = n_pos_x
+                    pos_y = n_pos_y
+                    arrow = n_arrow
+                    continue
                 front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
                 if args.log:
                     print(f"The front object being interacted with is {front_obj}")
@@ -998,14 +1020,17 @@ if __name__ == '__main__':
                 if terminated:
                     # For each new environment, the inventory is always 0
                     inv = 0
-                    # For every new environment, the action history is always 0 (empty)
-                    act_his = []
-                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
-                    pos_x, pos_y, arrow = pos_m[env_id]
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
+                    n_pos_x, n_pos_y, n_arrow = pos_m[env_id]
                     # Initilize the environment
                     obs, state = env.reset(seed=args.seed)
+                    front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+                    world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                     # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                    c_exp = sum_exp(args, n_exp, exp, act_his)
+                    continue
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = 0
@@ -1033,14 +1058,17 @@ if __name__ == '__main__':
                 if terminated:
                     # For each new environment, the inventory is always 0
                     inv = 0
-                    # For every new environment, the action history is always 0 (empty)
-                    act_his = []
-                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a →
-                    pos_x, pos_y, arrow = pos_m[env_id]
+                    # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
+                    n_pos_x, n_pos_y, n_arrow = pos_m[env_id]
                     # Initilize the environment
                     obs, state = env.reset(seed=args.seed)
+                    front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+                    world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                     # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                    c_exp = sum_exp(args, n_exp, exp, act_his)
+                    continue
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = get_n_inv(args, n_obs, obs)
@@ -1058,6 +1086,7 @@ if __name__ == '__main__':
                 exp = c_exp
                 obs = n_obs
                 inv = n_inv
+
 
             img_array = env.render()
             img = Image.fromarray(img_array)
@@ -1095,6 +1124,10 @@ if __name__ == '__main__':
             if len(act_his) >= args.refresh:
                 act_his = act_his[1:]
 
+            # After view everyting, go to the next environment
+            if env_view_ratio == 1.0:
+                break
+
         # Environment close() due to all steps finished      
         env.close()
 
@@ -1106,10 +1139,10 @@ if __name__ == '__main__':
             wandb.log({f"Table/World Map for Environment #{i}": world_map_table})
 
         # Save to CSV
-        scn_table_df.to_csv(os.path.join(save_path, 'scn_table.csv'), index=False)
-        env_table_df.to_csv(os.path.join(save_path, 'env_table.csv'), index=False)
-        obj_table_df.to_csv(os.path.join(save_path, 'obj_table.csv'), index=False)
-        world_map_table_df.to_csv(os.path.join(save_path, 'world_map_table.csv'), index=False)
-        metrics_df.to_csv(os.path.join(save_path, 'metrics.csv'), index=False)
+        scn_table_df.to_csv(os.path.join(save_path, f'scn_table_env_{i}.csv'), index=False)
+        env_table_df.to_csv(os.path.join(save_path, f'env_table_env_{i}.csv'), index=False)
+        obj_table_df.to_csv(os.path.join(save_path, f'obj_table_env_{i}.csv'), index=False)
+        world_map_table_df.to_csv(os.path.join(save_path, f'world_map_table_env_{i}.csv'), index=False)
+        metrics_df.to_csv(os.path.join(save_path, f'metrics_env_{i}.csv'), index=False)
 
     wandb.finish()

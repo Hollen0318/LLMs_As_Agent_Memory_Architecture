@@ -48,7 +48,7 @@ class ManualControl:
 
     def step(self, action: Actions):
         obs, reward, terminated, truncated, _ = self.env.step(action)
-        print(f"obs img = {str(np.rot90(obs['image'].transpose(1,0,2)[:, :, 0], k=-1))} step={self.env.step_count}, reward={reward:.2f}")
+        print(f"obs img = {str(obs['image'][:, :, 0])} step={self.env.step_count}, reward={reward:.2f}")
 
         if terminated:
             print("terminated!")
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--view",
         type = int,
-        default = 7,
+        default = 3,
         help = "set the number of grid spaces visible in agent-view ",
     )
     parser.add_argument(
@@ -204,6 +204,7 @@ if __name__ == "__main__":
         env: MiniGridEnv = gym.make(
             id = env_name,
             render_mode = "rgb_array",
+            # render_mode = "human",
             agent_view_size = args.view,
             screen_size = args.screen
         )
@@ -212,7 +213,8 @@ if __name__ == "__main__":
         # manual_control.start()
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
-        img_array = env.render()
-        img = Image.fromarray(img_array)
-        img.save(os.path.join(args.save, f"env_{i}.png"))
+        # img_array = env.render()
+        # img = Image.fromarray(img_array)
+        # img.save(os.path.join(args.save, f"env_{i}.png"))
+        print(f"obs = {str(obs['mission'])}")
         env.close()
