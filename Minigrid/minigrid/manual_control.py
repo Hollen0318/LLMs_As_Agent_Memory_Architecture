@@ -66,6 +66,7 @@ class ManualControl:
 
         if key == "escape":
             self.env.close()
+            self.closed = True
             return
         if key == "backspace":
             self.reset()
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         "--env-id-maps",
         type = str,
         help = "the environment ID and environment name mapping",
-        default = r"C:/Users/holle/OneDrive - Duke University/LLM_As_Agent/utilities/env_id_maps.txt"
+        default = r"../../utilities/env_id_maps.txt"
     )
     parser.add_argument(
         "--envs",
@@ -129,12 +130,6 @@ if __name__ == "__main__":
         help="set the resolution for pygame rendering (width and height)",
     )
     parser.add_argument(
-        "--seed",
-        type=int,
-        help="random seed to generate the environment with",
-        default=None,
-    )
-    parser.add_argument(
         "--tile-size", 
         type=int, 
         help="size at which to render tiles", 
@@ -145,6 +140,24 @@ if __name__ == "__main__":
         type = str,
         help = "the project name for your wandb",
         default = "Minigrid Manaual Control As Agent"
+    )
+    parser.add_argument(
+        "--screen",
+        type = int,
+        default = 640,
+        help = "set the resolution for pygame rendering (width and height)",
+    )
+    parser.add_argument(
+        "--seed",
+        type = int,
+        help = "random seed for reproducing results",
+        default = 23
+    )
+    parser.add_argument(
+        "--view",
+        type = int,
+        default = 7,
+        help = "set the number of grid spaces visible in agent-view ",
     )
     parser.add_argument(
         "--wandb",
@@ -167,6 +180,7 @@ if __name__ == "__main__":
         args.envs = [str(i) for i in range(61)]
 
     for i in args.envs:
+        print(f"loading environment #{i}")
         env_id = int(i)
         # For each new environment, the inventory is always 0
         inv = 0
