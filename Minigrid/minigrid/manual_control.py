@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-
+import os
 import gymnasium as gym
 import pygame
 from gymnasium import Env
@@ -9,6 +9,7 @@ import numpy as np
 from minigrid.core.actions import Actions
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
+from PIL import Image
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_id_mapping(args):
@@ -25,9 +26,11 @@ class ManualControl:
         self,
         env: Env,
         seed=None,
+        index = None,
     ) -> None:
         self.env = env
         self.seed = seed
+        self.index = index
         self.closed = False
 
     def start(self):
@@ -65,6 +68,9 @@ class ManualControl:
         print("pressed", key)
 
         if key == "escape":
+            img_array = self.env.render()
+            img = Image.fromarray(img_array)
+            img.save(os.path.join(args.save, f"env_{self.index}.png"))
             self.env.close()
             self.closed = True
             return
@@ -124,6 +130,12 @@ if __name__ == "__main__":
         help = "whether to show the environment observation by RGB array"
     )
     parser.add_argument(
+        "--save",
+        type=str,
+        default=r"C:\Users\holle\OneDrive - Duke University\Research\LLM_As_Agent\utilities\env_scn_23",
+        help="the save place for the screenshot"
+    )
+    parser.add_argument(
         "--screen-size",
         type=int,
         default="640",
@@ -177,7 +189,7 @@ if __name__ == "__main__":
 
     # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
     if args.all:
-        args.envs = [str(i) for i in range(61)]
+        args.envs = [str(i) for i in range(58)]
 
     for i in args.envs:
         print(f"loading environment #{i}")
@@ -191,10 +203,16 @@ if __name__ == "__main__":
 
         env: MiniGridEnv = gym.make(
             id = env_name,
-            render_mode = "human",
+            render_mode = "rgb_array",
             agent_view_size = args.view,
             screen_size = args.screen
         )
-
-        manual_control = ManualControl(env, seed=args.seed)
-        manual_control.start()
+        # env = RGBImgPartialObsWrapper(env, 32)
+        # manual_control = ManualControl(env, seed=args.seed, index = i)
+        # manual_control.start()
+        # Initilize the environment
+        obs, state = env.reset(seed=args.seed)
+        img_array = env.render()
+        img = Image.fromarray(img_array)
+        img.save(os.path.join(args.save, f"env_{i}.png"))
+        env.close()

@@ -804,7 +804,7 @@ if __name__ == '__main__':
 
     # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
     if args.all:
-        args.envs = [str(i) for i in range(61)]
+        args.envs = [str(i) for i in range(58)]
     
     with open(args.sys_temp, 'r', encoding='utf-8') as file:
         sys_msg = file.read()
