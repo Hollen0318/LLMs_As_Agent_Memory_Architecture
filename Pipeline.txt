@@ -12,7 +12,8 @@ Note:
 *4. Termination on the environment
 *5. After viewing everything, load the next environment
 6. Include model like Llama and GPT
-7. Write the memory into txt everytime (with name being the step and lim count)
-8. Use L, R, U and D instead of arrows
-9. Forbid the agent from using the toggle to a box
-10. Include the records to the observation representation
+7. Write the experience into txt everytime (with name being the step and lim count)
+*8. Use Left, Right, Up and Down instead of arrows
+*9. Forbid the agent from using the toggle to a box
+-10. Include the records to the observation representation
+*11. Keep track of the experience length

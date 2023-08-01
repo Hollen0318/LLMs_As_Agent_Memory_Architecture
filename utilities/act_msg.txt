@@ -1,35 +1,14 @@
-1. World Map
-
-    1.1 Object Map
-    
-{}
-    
-    1.2 Color Map
+This is the reason of choice about what action to take you derived earlier:
 
 {}
 
-    1.3. Status Map
+Based on this, convert the reason of choice into your final choice of action, which will be represented by an integer corresponds to:
 
-    {}
+0 left
+1 right
+2 toggle
+3 forward
+4 pick up
+5 drop off
 
-2. Inventory
-
-{}
-
-3. Past actions
-
-{}
-
-4. Gained experience
-
-{}
-
-{}
-
-Choose your action using an integer from 0 - 5 (integer only): 
-(0) left: turn your view to the left object
-(1) right: turn your view to the right object
-(2) toggle: toggle the object in front of you
-(3) forward: move yourself to the front object if it's empty or opened
-(4) pick up: pick up the front object if it can be picked up
-(5) drop off: drop off the current inventory if front is empty
+Choose your action by calling the function "choose_act" with the action integer (0 to 5) being the parameter.
