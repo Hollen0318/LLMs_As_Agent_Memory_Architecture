@@ -35,7 +35,7 @@ def cvt_act(args, inv, act, fro_obj_l):
 
     return inv, act_obj
 
-def get_action(args, env_id, world_map, inv, act_his, obs, exp):
+def get_action(args, env_id, world_map, inv, act_his, obs, exp, desc):
     global save_path
     if args.log:
         print(f"\n\n################## Start Deciding ##################\n\n")
@@ -116,6 +116,8 @@ def get_action(args, env_id, world_map, inv, act_his, obs, exp):
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
     return act_obj_pair[act], act_msg_s
+# Get the observation representation description, to aid in the decision making
+def get_desc(args, env_id, world_map, inv, act_his, obs, exp):
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_id_mapping(args):
@@ -444,6 +446,7 @@ def update_rec(args, env_rec, obj_rec, env_id, act, pos, obs, fro_obj_l):
 def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec):
     global save_path
     # With the new obs, we should first update the env_memo_rec, as it will determine which parts of world map will show
+    p_obj, p_col, p_sta = world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y]
     if arrow == "Right":
         # It means the agent is facing right, so we update the env_memo_rec accordingly, specifically we 
         # set args.memo to the corresponding observed area while all other values are deducted by 1 unless equals to 0
@@ -469,9 +472,7 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                     world_map[env_id][1][row][col] = str(col_name)
                     world_map[env_id][2][row][col] = str(sta_name)
                 obj_view_rec[env_id][obj_name] += 1
-                if row == pos_x and col == pos_y:
-                    # p_obj, p_col, p_sta is the obj, col, sta in the current position, because it will be replace by the arrow, we record it here to be used when the agent move forward and restore it
-                    p_obj, p_col, p_sta = world_map[env_id][0][row][col], world_map[env_id][1][row][col], world_map[env_id][2][row][col]
+
         world_map[env_id][0][pos_x][pos_y] = arrow
         world_map[env_id][1][pos_x][pos_y] = arrow
         world_map[env_id][2][pos_x][pos_y] = arrow
@@ -504,8 +505,6 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                     world_map[env_id][1][row][col] = str(col_name)
                     world_map[env_id][2][row][col] = str(sta_name)
                 obj_view_rec[env_id][obj_name] += 1
-                if row == pos_x and col == pos_y:
-                    p_obj, p_col, p_sta = world_map[env_id][0][row][col], world_map[env_id][1][row][col], world_map[env_id][2][row][col]
         world_map[env_id][0][pos_x][pos_y] = arrow
         world_map[env_id][1][pos_x][pos_y] = arrow
         world_map[env_id][2][pos_x][pos_y] = arrow
@@ -538,8 +537,6 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                     world_map[env_id][1][row][col] = str(col_name)
                     world_map[env_id][2][row][col] = str(sta_name)
                 obj_view_rec[env_id][obj_name] += 1
-                if row == pos_x and col == pos_y:
-                    p_obj, p_col, p_sta = world_map[env_id][0][row][col], world_map[env_id][1][row][col], world_map[env_id][2][row][col]
         world_map[env_id][0][pos_x][pos_y] = arrow
         world_map[env_id][1][pos_x][pos_y] = arrow
         world_map[env_id][2][pos_x][pos_y] = arrow
@@ -572,8 +569,6 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                     world_map[env_id][1][row][col] = str(col_name)
                     world_map[env_id][2][row][col] = str(sta_name)
                 obj_view_rec[env_id][obj_name] += 1
-                if row == pos_x and col == pos_y:
-                    p_obj, p_col, p_sta = world_map[env_id][0][row][col], world_map[env_id][1][row][col], world_map[env_id][2][row][col]
         world_map[env_id][0][pos_x][pos_y] = arrow
         world_map[env_id][1][pos_x][pos_y] = arrow
         world_map[env_id][2][pos_x][pos_y] = arrow
@@ -849,13 +844,13 @@ if __name__ == '__main__':
         )
 
         if args.wandb:
-            scn_table = wandb.Table(columns = ["img", "text", "act", "n_exp", "c_exp"])
+            scn_table = wandb.Table(columns = ["img", "text", "reason", "act", "n_exp", "c_exp"])
             env_table = wandb.Table(columns = ["env_view_rec", "env_step_rec", "env_memo_rec"])
             obj_table = wandb.Table(columns = ["obj_intr_rec", "obj_view_rec"])
             world_map_table = wandb.Table(columns = ["world_map_obj", "world_map_col", "world_map_sta"])
         # we save them to the csv
         # Define table structure
-        scn_table_columns = ["Image", "Message", "Action", "N_exp", "C_exp"]
+        scn_table_columns = ["Image", "Message", "Reason", "Action", "N_exp", "C_exp"]
         env_table_columns = ["Env_View", "Env_Step", "Env_Memo"]
         obj_table_columns = ["Obj_Intr", "Obj_View"]
         world_map_table_columns = ["World_Map_Object", "World_Map_Color", "World_Map_Status"]
@@ -885,7 +880,9 @@ if __name__ == '__main__':
 
         for j in range(args.steps):
             # We get a new action, during which update the record tables
-            act, act_msg_s = get_action(args, env_id, world_map, inv, act_his, obs, exp)
+            desc = get_desc(args, env_id, world_map, inv, act_his, obs, exp)
+            
+            act, act_msg_s = get_action(args, env_id, world_map, inv, act_his, obs, exp, desc)
             # We get the action from the act_hint, the act is a string format like "pick up"
             # With the new act, we convert it into the actions object
             

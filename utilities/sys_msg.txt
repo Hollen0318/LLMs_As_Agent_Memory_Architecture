@@ -11,54 +11,54 @@ Observations will be composed of the following items:
 
     You can only see areas in front of you, so the area not in your sight will gradually be forgotten.
 
-    When you have forgotten some places or have not viewed them yet, they will be marked as unseen (-).
+   Places you have forgotten or have not viewed them yet will be marked as unseen (-).
 
     Example:
 
     1.1 Object Map
 
-    The numbers in the object map correspond to: (unseen: -, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, Yourself: →, ←, ↑, ↓)
+    The numbers in the object map correspond to: (unseen: -, empty: 1, wall: 2, floor: 3, door: 4, key: 5, ball: 6, box: 7, goal: 8, lava: 9, Position and facing direction: Right, Left, Up, Down)
         
     [[- 2 2 2 2 2 - - - - -]
      [- 1 1 1 6 4 - - - - -]
-     [- → 1 1 5 2 - - - - -]
+     [- Right 1 1 5 2 - - - - -]
      [- 1 1 1 1 2 - - - - -]
      [- 1 1 1 1 2 - - - - -]
      [- 2 2 2 2 2 - - - - -]]
 
     Interpretation: 
-    You are standing at (2,1) facing east (→), you can see there is a wide region in front with each object numbered. 
+    You are standing at (2,1) facing Right, you can see there is a wide region in front with each object numbered. 
     For example, a key (5) is two steps in front of you. A ball (6) is blocking you from the door (4). 
     A wall is surrounding you, a ball, door, and key. The objects behind you, or the door as well as the wall are unseen (0). 
 
     1.2 Color Map
 
-    The numbers in the color map correspond to: (unseen: -, black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5, Yourself: →, ←, ↑, ↓)
+    The numbers in the color map correspond to: (unseen: -, black: 0, green: 1, blue: 2, purple: 3, yellow: 4, grey: 5, Position and facing direction: Right, Left, Up, Down)
 
     [[- 5 5 5 5 5 - - - - -]
      [- 0 0 0 1 1 - - - - -]
-     [- → 0 0 1 5 - - - - -]
+     [- Right 0 0 1 5 - - - - -]
      [- 0 0 0 0 5 - - - - -]
      [- 0 0 0 0 5 - - - - -]
      [- 5 5 5 5 5 - - - - -]]
 
     Interpretation: 
-    You are standing at (2,1) facing east (→), you can see there are three green objects in the Color Map, combined with the object map you know they are a green ball, key, and door (1).
+    You are standing at (2,1) facing Right, you can see there are three green objects in the Color Map, combined with the object map you know they are a green ball, key, and door (1).
     The wall is all of color grey (5) and empty spaces are all of color black (0). The objects behind you, the door, and the wall are unseen (-).  
 
     1.3. Status Map
 
-    The numbers in the status map correspond to (unseen: -, open: 0, closed: 1, locked: 2, Yourself: →, ←, ↑, ↓)
+    The numbers in the status map correspond to (unseen: -, open: 0, closed: 1, locked: 2, Position and facing direction: Right, Left, Up, Down)
 
     [[- 0 0 0 0 0 - - - - -]
      [- 0 0 0 0 2 - - - - -]
-     [- → 0 0 0 0 - - - - -]
+     [- Right 0 0 0 0 - - - - -]
      [- 0 0 0 0 0 - - - - -]
      [- 0 0 0 0 0 - - - - -]
      [- 0 0 0 0 0 - - - - -]]
 
     Interpretation: 
-    You are standing at (2,1) facing east (→), and you can see there is a locked object, combined with the previous observations, you can tell that is a locked green door.
+    You are standing at (2,1) facing Right, and you can see there is a locked object, combined with the previous observations, you can tell that is a locked green door.
 
 2. Inventory
 
@@ -69,7 +69,7 @@ Observations will be composed of the following items:
     You are holding nothing.
 
     Interpretation:
-    If you are not holding anything, you can pick up an object by calling "choose_act" with the parameter being "pick up", otherwise, you must use a call with "drop off" to an empty space to pick up something else.
+    If you are not holding anything, you can "pick up" an object, otherwise, you must "drop off" to an empty space to pick up something else.
 
 3. Past actions:
 
@@ -94,8 +94,7 @@ Observations will be composed of the following items:
 
 Remember all these examples are just for your reference, your real observation will be provided to you later with a similar format.
 Remember during exploration you will forget past scenes so get stuck at the corner will lose past memory about the world map.
-It's a small and enclosed world so if no change in the world map, you are likely to be stuck. 
-Remember you can only interact with the single object right in front of you with actions like "toggle", "drop off", and "pick up". 
+Remember you can only interact with the single object right in front of you with actions being "toggle", "drop off", and "pick up". 
 What object you can "toggle", "pick up" and "drop off" is going to be learned from your exploration. 
 Your inventory status also affects how you can interact with objects.
-Pay attention to your world map observation as it includes your position, direction and environment layout.  
+Pay attention to your world map observation as it includes your position, direction and environment layout.
