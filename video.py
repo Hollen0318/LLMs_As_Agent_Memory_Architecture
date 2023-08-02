@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--load",
-        default = r"/home/hz271/Research/General Robotics Lab 通用机器人实验室/LLM_As_Agent/GPT/ALL/desc_50_goal_False_gpt_3_lim_50_memo_5_reason_50_refresh_6_seed_23_static_False_steps_20_temp_0.8_view_7/2023-08-02 12-14-31",
+        default = r"GPT\ALL\desc_50_goal_False_gpt_3_lim_50_memo_5_reason_50_refresh_6_seed_23_static_False_steps_20_temp_0.8_view_7\2023-08-02 12-14-31",
         type = str,
         help = "the location to load records, images"
     )
