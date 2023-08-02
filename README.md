@@ -30,7 +30,7 @@ conda activate minigrid
 1. Test the environment with `--API-key` stored under `./utilities/API/API_1`,`--sys-msg` under `./utilities/n_sys_msg.txt` with all other settings in default. (`--overwrite` will replace the same experiment configs experiment setting)
 
 ```shell
-python explore.py --log --wandb --steps 1000 --lim 1000 --temp 0.9  
+python explore.py --log --wandb --steps 20 --lim 50 --temp 0.8 --all 
 ```
 
 ## Command Line Arguments

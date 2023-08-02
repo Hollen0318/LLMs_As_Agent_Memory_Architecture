@@ -759,7 +759,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--desc",
         type = int,
-        default = 200, 
+        default = 50, 
         help = "the token limits for observation description"
     )
     parser.add_argument(
@@ -823,7 +823,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--lim",
         type = int,
-        default = 500,
+        default = 50,
         help = "the tokens limit to the experience"
     )
     parser.add_argument(
@@ -1152,7 +1152,6 @@ if __name__ == '__main__':
                     pos_x = n_pos_x
                     pos_y = n_pos_y
                     arrow = n_arrow
-                    continue
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
@@ -1200,7 +1199,6 @@ if __name__ == '__main__':
                     pos_x = n_pos_x
                     pos_y = n_pos_y
                     arrow = n_arrow
-                    continue
                 if args.log:
                     print(f"The front object being interacted with is {front_obj}")
                 write_log(save_path, f"The front object being interacted with is {front_obj}")
@@ -1233,7 +1231,6 @@ if __name__ == '__main__':
                     _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                     n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                     c_exp = sum_exp(args, n_exp, exp, act_his)
-                    continue
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = 0
@@ -1271,7 +1268,6 @@ if __name__ == '__main__':
                     _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                     n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                     c_exp = sum_exp(args, n_exp, exp, act_his)
-                    continue
                 else:
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = get_n_inv(args, n_obs, obs)
