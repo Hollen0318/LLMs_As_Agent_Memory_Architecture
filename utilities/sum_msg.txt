@@ -11,4 +11,4 @@ Your past actions are:
     {}
 
 Compare your new experience and old experience, combine and summarize them to give yourself a more complete, better experience. 
-Limit words to be less than {} words.
+Limit words to be less than {} tokens.

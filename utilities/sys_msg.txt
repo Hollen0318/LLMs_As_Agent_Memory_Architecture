@@ -1,4 +1,4 @@
-Your mission is to explore a small 2D world as much as you can.
+This is a small 2D world, you mission is to explore it as much as you can.
 Observations will be composed of the following items:
 
 1. World Map

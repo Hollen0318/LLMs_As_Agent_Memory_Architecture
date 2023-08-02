@@ -54,4 +54,4 @@ What new action will you do to explore the world as much as you can?
 Have you tried diverse & various actions to explore the world?
 What you learned about the object in front of you, and your action's effects?
 
-Limit your experience to be less than {} words.
+Limit your experience to be less than {} tokens.

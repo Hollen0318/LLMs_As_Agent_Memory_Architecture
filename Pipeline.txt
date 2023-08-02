@@ -17,3 +17,4 @@ Note:
 *9. Forbid the agent from using the toggle to a box
 -10. Include the records to the observation representation
 *11. Keep track of the experience length
+12. Seperate the system, user, assistant
