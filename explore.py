@@ -125,7 +125,7 @@ def get_desc(args, env_id, world_map, inv, act_his, obs, exp):
     
     if args.input:
         # A demo action when using input
-        desc += input("Description of observation representation")
+        desc += "Description of observation representation"
         return desc
     else:
         # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
@@ -380,7 +380,7 @@ def get_reason(args, world_map, inv, act_his, obs, exp, desc):
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
         # A demo action when using input
-        reason = input(f"""Based on the observation, give your reason of choice""")
+        reason = "Reason of choice"
         return reason, "action message"
     else:
         # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
@@ -722,7 +722,6 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
         print(f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
     write_log(save_path, f"\n################## Debugging Position ##################\n")
     write_log(save_path, f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
-    print(f"******************************* The world map is now {str(world_map[env_id][0])} *****************************")
     return p_obj, p_col, p_sta
 
 # Function to write the logging infos in to log save file
@@ -999,7 +998,7 @@ if __name__ == '__main__':
         # Get environment name from the mapping
         env_name = envs_id_mapping[env_id]
         if args.log:
-            print(f"Loading environment = {env_name}")
+            print(f"\nLoading environment = {env_name}")
         write_log(save_path, f"Loading environment = {env_name}")
 
         env: MiniGridEnv = gym.make(
@@ -1032,6 +1031,9 @@ if __name__ == '__main__':
         obs, state = env.reset(seed=args.seed)
         # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
         p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+        if args.log:
+            print(f"\n####################################### The first p_obj p_col p_sta is {p_obj} {p_col} {p_sta} #######################################\n")
+        write_log(save_path, f"\n####################################### The first p_obj p_col p_sta is {p_obj} {p_col} {p_sta} #######################################\n")
         # Iterate the agent exploration within the limit of args.steps
         if args.wandb:
             # scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
@@ -1096,7 +1098,7 @@ if __name__ == '__main__':
                 o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.left)
                 act_his.append(act)
-                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
 
@@ -1113,7 +1115,7 @@ if __name__ == '__main__':
                 o_world_map[env_id][2] = world_map[env_id][2].copy()
                 n_obs, reward, terminated, truncated, _ = env.step(Actions.right)
                 act_his.append(act)
-                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
 
@@ -1156,6 +1158,9 @@ if __name__ == '__main__':
                         n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
                     else:
                         n_pos_x, n_pos_y = pos_x, pos_y
+                if args.log:
+                    print(f"\n******************************************* Doing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
+                write_log(save_path, f"\n******************************************* Doing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
                 world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
@@ -1188,7 +1193,7 @@ if __name__ == '__main__':
                     obs, state = env.reset(seed=args.seed)
                     world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                     # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                     n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                     c_exp = sum_exp(args, n_exp, exp, act_his)
                     exp = c_exp
@@ -1200,7 +1205,7 @@ if __name__ == '__main__':
                     print(f"The front object being interacted with is {front_obj}")
                 write_log(save_path, f"The front object being interacted with is {front_obj}")
                 obj_intr_rec[env_id][0][front_obj] += 1
-                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
 
@@ -1225,7 +1230,7 @@ if __name__ == '__main__':
                     front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
                     world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                     # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                     n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                     c_exp = sum_exp(args, n_exp, exp, act_his)
                     continue
@@ -1237,7 +1242,7 @@ if __name__ == '__main__':
                     print(f"The front object being interacted with is {front_obj}")
                 write_log(save_path, f"The front object being interacted with is {front_obj}")
                 obj_intr_rec[env_id][1][front_obj] += 1
-                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
 
@@ -1263,7 +1268,7 @@ if __name__ == '__main__':
                     front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
                     world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                     # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                    p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                    _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                     n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                     c_exp = sum_exp(args, n_exp, exp, act_his)
                     continue
@@ -1277,7 +1282,7 @@ if __name__ == '__main__':
                     print(f"The front object being interacted with is {front_obj}")
                 write_log(save_path, f"The front object being interacted with is {front_obj}")
                 obj_intr_rec[env_id][2][front_obj] += 1
-                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
                 c_exp = sum_exp(args, n_exp, exp, act_his)
 
