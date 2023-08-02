@@ -46,13 +46,13 @@ if __name__ == '__main__':
         "--envs",
         nargs = "+",
         help = "the range to load the env records from x to y",
-        default = ["0", "2"]
+        default = ["0", "14"]
     )
     parser.add_argument(
         "--idx",
         nargs = "+",
         help = "the range to load the idx from x to y",
-        default = ["0", "20"]
+        default = ["0", "19"]
     )
     parser.add_argument(
         "--video-size",
@@ -70,12 +70,13 @@ if __name__ == '__main__':
         "--config",
         type = str,
         help = "the configuration to show in the video",
-        default = "desc_50_goal_False_gpt_3_lim_50_memo_5_reason_50_refresh_6_seed_23_static_False_steps_20_temp_0.8_view_7"
+        default = "desc_50_goal_False_gpt_3_lim_50_\nmemo_5_reason_50_refresh_6_seed_23_\nstatic_False_steps_20_temp_0.8_view_7"
     )
     args = parser.parse_args()
     save_path = args.load
     out = cv2.VideoWriter(os.path.join(save_path, args.video_name), cv2.VideoWriter_fourcc(*'mp4v'), args.fps, (int(args.video_size[0]), int(args.video_size[1])))
     for i  in range(int(args.envs[0]), int(args.envs[1])+1):
+        print(f"Loading environment {i} start")
         scn_table_n = f"scn_table_env_{str(i)}.csv"
         obj_table_n = f"obj_table_env_{str(i)}.csv"
         metrics_table_n = f"metrics_env_{str(i)}.csv"
@@ -96,12 +97,8 @@ if __name__ == '__main__':
         image_n = f"env_{str(i)}_action_0_{action}.png"
         world_map_obj, world_map_col, world_map_sta = world_map_table_df['World_Map_Object'][0], world_map_table_df['World_Map_Object'][0], world_map_table_df['World_Map_Object'][0]
         pattern = re.compile(f'env_{str(i)}_idx_1_desc_\\d+\\.txt')
-        for filename in os.listdir(save_path):
-            if pattern.match(filename):
-                full_path = os.path.join(save_path, filename)
-                with open(full_path, 'r') as file:
-                    desc = file.read()
         message = scn_table_df["Message"][0]
+        reason = scn_table_df["Reason"][0]
         image = Image.open(os.path.join(save_path, image_n))
         image = image.resize((int(args.image_size[0]), int(args.image_size[1])), Image.Resampling.LANCZOS)
         
@@ -113,89 +110,342 @@ if __name__ == '__main__':
         
         # Add text to it
         draw = ImageDraw.Draw(frame)
-        draw.text((int(args.image_size[0]) * 1.5, int(args.video_size[1]) / 6), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx 0",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
 
         # Finishing decorating the rame
         frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
         out.write(frame)  # write the frame
-        # print(f"The message is \n{message}")
-        # print(f"For the env = {i}, the row_id = 0, the action is {action}, the desc is {desc}")
-        # print(f"the world map obj = {world_map_obj} col = {world_map_col} sta = {world_map_sta}")
+
+        # Update the action first
+        # Create the frame
+        frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
+        
+        # Add image to it
+        frame.paste(image, (0,0))
+        action = scn_table_df['Action'][0]
+        # Add text to it
+        draw = ImageDraw.Draw(frame)
+        draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx 0",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 250), f"Choose to do {action}",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+
+        draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+
+        # Finishing decorating the rame
+        frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+        out.write(frame)  # write the frame
+
+        # Create the frame
+        frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
+        
+        # Add image to it
+        frame.paste(image, (0,0))
+        n_exp = scn_table_df['N_exp'][0]
+        # Add text to it
+        draw = ImageDraw.Draw(frame)
+        draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx 0",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 250), f"Choose to do {action}",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 350), f"Get experience:",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 450), n_exp,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+
+        draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+
+        # Finishing decorating the rame
+        frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+        out.write(frame)  # write the frame
+
+        # Create the frame
+        frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
+        
+        # Add image to it
+        frame.paste(image, (0,0))
+        c_exp = scn_table_df['C_exp'][0]
+        # Add text to it
+        draw = ImageDraw.Draw(frame)
+        draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx 0",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 250), f"Choose to do {action}",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 350), f"Get experience:",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 450), n_exp,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 550), f"Summarized experience:",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((500, int(args.image_size[1]) + 650), c_exp,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+        draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][0]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+
+        draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+        draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+
+        # Finishing decorating the rame
+        frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+        out.write(frame)  # write the frame
+
+        image.close()
         for j in range(int(args.idx[0]), int(args.idx[1])):
+            print(f"Loading environment {i} idx {j}")
             frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
             action = scn_table_df['Action'][j]
+            message = scn_table_df["Message"][j+1]
+
             image_n = f"env_{str(i)}_idx_{str(j+1)}_act_{action}.png"
             image = Image.open(os.path.join(save_path, image_n))
             image = image.resize((int(args.image_size[0]), int(args.image_size[1])), Image.Resampling.LANCZOS)
+            # Create the frame
+            frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
+            reason = scn_table_df["Reason"][j+1]
+            # Add image to it
             frame.paste(image, (0,0))
-
+            
             # Add text to it
             draw = ImageDraw.Draw(frame)
-            draw.text((int(args.image_size[0]) * 1.5, int(args.video_size[1]) / 6), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx {str(j+1)}",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
 
-            world_map_obj, world_map_col, world_map_sta = world_map_table_df['World_Map_Object'][j+1], world_map_table_df['World_Map_Object'][j+1], world_map_table_df['World_Map_Object'][j+1]
-            pattern = re.compile(f'env_{str(i)}_idx_{str(j+2)}_desc_\\d+\\.txt')
-            for filename in os.listdir(save_path):
-                if pattern.match(filename):
-                    full_path = os.path.join(save_path, filename)
-                    with open(full_path, 'r') as file:
-                        desc = file.read()
+            # Finishing decorating the rame
             frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
             out.write(frame)  # write the frame
+
+            # Update the action first
+            # Create the frame
+            frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
+            
+            # Add image to it
+            frame.paste(image, (0,0))
+            action = scn_table_df['Action'][j+1]
+            # Add text to it
+            draw = ImageDraw.Draw(frame)
+            draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx {str(j+1)}",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 250), f"Choose to do {action}",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+
+            draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+
+            # Finishing decorating the rame
+            frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+            out.write(frame)  # write the frame
+
+            # Create the frame
+            frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
+            
+            # Add image to it
+            frame.paste(image, (0,0))
+            n_exp = scn_table_df['N_exp'][j+1]
+            # Add text to it
+            draw = ImageDraw.Draw(frame)
+            draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx {str(j+1)}",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 250), f"Choose to do {action}",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 350), f"Get experience:",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 450), n_exp,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+
+            draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+
+            # Finishing decorating the rame
+            frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+            out.write(frame)  # write the frame
+
+            # Create the frame
+            frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
+            
+            # Add image to it
+            frame.paste(image, (0,0))
+            c_exp = scn_table_df['C_exp'][j+1]
+            # Add text to it
+            draw = ImageDraw.Draw(frame)
+            draw.text((int(args.image_size[0]) + 100, 100), f"env id {str(i)} idx {str(j+1)}",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((500, int(args.image_size[1]) + 50), reason,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 250), f"Choose to do {action}",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 350), f"Get experience:",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 50), "environment view ratio {:.3f}%".format(metrics_table_df['env_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 100), "environment memo ratio {:.3f}%".format(metrics_table_df['env_memo_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 150), "environment step ratio {:.3f}%".format(metrics_table_df['env_step_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 200), "object view ratio {:.3f}%".format(metrics_table_df['obj_view_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 250), "object interact ratio {:.3f}%".format(metrics_table_df['obj_intr_ratio'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 300), "experience length {:.3f}%".format(metrics_table_df['exp_length'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 450), n_exp,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 550), f"Summarized experience:",  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((500, int(args.image_size[1]) + 650), c_exp,  fill='black', font = ImageFont.truetype('arial.ttf', 30))
+            draw.text((0, int(args.image_size[1])), message,  fill='black', font = ImageFont.truetype('arial.ttf', 15))
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 350), "Environment View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 350), str(env_table_df['Env_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 600), "Environment Step Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 600), str(env_table_df['Env_Step'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 850), "Environment Status Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 850), str(env_table_df['Env_Memo'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 250, int(args.image_size[1]) + 1100), "Object Interact Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 500, int(args.image_size[1]) + 1100), str(obj_table_df['Obj_Intr'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1100), "Object View Map", fill='black', font = ImageFont.truetype('arial.ttf', 20))
+            draw.text((int(args.video_size[0]) - 900, int(args.image_size[1]) + 1150), str(obj_table_df['Obj_View'][j+1]), fill='black', font = ImageFont.truetype('arial.ttf', 20))
+
+            draw.text((int(args.image_size[0]) + 100, 200), "Configurations:",  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+            draw.text((int(args.image_size[0]) + 100, 300), args.config,  fill='black', font = ImageFont.truetype('arial.ttf', 80))
+
+            # Finishing decorating the rame
+            frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+            out.write(frame)  # write the frame
+
+            image.close()
     out.release()
     print(f"The video was successfully created at \n{str(os.path.join(save_path, args.video_name))}")
-            # print(f"For the env = {i}, the row_id = {j+1}, the action is {action}, the desc is {desc}")
-            # print(f"the world map obj = {world_map_obj} col = {world_map_col} sta = {world_map_sta}")
-    # images = [i for i in os.listdir(save_path) if i.endswith(".png")]
-    # images.sort(key=lambda x:int(x.split('_')[3]))
-    # metrics_df = pd.read_csv(os.path.join(save_path, args.metrics_table))
-    # obj_table_df = pd.read_csv(os.path.join(save_path, args.obj_table))
-    # env_table_df = pd.read_csv(os.path.join(save_path, args.env_table))
-    # scn_table_df = pd.read_csv(os.path.join(save_path, args.scn_table))
-    # args.video_size = (3000, 1800)
-    # args.image_size = (1000, 600)
-    # out = cv2.VideoWriter(os.path.join(save_path, args.video_name), cv2.VideoWriter_fourcc(*'mp4v'), args.fps, args.video_size)
-    # idx = 0
-    # for i in images:
-    #     img_path = os.path.join(save_path, i)
-    #     img = Image.open(img_path)
-    #     img = img.resize(args.image_size, Image.LANCZOS)
-
-    #     frame = Image.new('RGB', args.video_size, 'white')
-    #     frame.paste(img, (0,0))
-
-    #     # Add action being tabken
-    #     draw = ImageDraw.Draw(frame)
-    #     ratio_font_size = 40
-    #     table_font_size = 30
-    #     offset = 100
-    #     draw.text((args.image_size[0] * 1.5, args.video_size[1] / 6), f"environment # {i.split('_')[1][0]} action {idx+1} {i.split('_')[4][:-4]}", fill='black', font = ImageFont.truetype('arial.ttf', 80))
-    #     draw.text((0, offset + args.video_size[1] / 3), "1. environment view ratio {:.3f}%".format(metrics_df['env_view_ratio'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', ratio_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 50), str(env_table_df['Env_View'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', table_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 250), "2. environment memo ratio {:.3f}%".format(metrics_df['env_memo_ratio'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', ratio_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 300), str(env_table_df['Env_Memo'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', table_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 500), "3. environment step ratio {:.3f}%".format(metrics_df['env_step_ratio'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', ratio_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 550), str(env_table_df['Env_Step'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', table_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 750), "4. object view ratio {:.3f}%".format(metrics_df['obj_view_ratio'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', ratio_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 800), str(obj_table_df['Obj_View'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', table_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 850), "5. object intr ratio {:.3f}%".format(metrics_df['obj_intr_ratio'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', ratio_font_size))
-    #     draw.text((0, offset + args.video_size[1] / 3 + 900), str(obj_table_df['Obj_Intr'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', table_font_size))
-    #     # draw.text((0, args.image_size[1] * 3.0), "5. object intr ratio {:.3f}%".format(metrics_df['obj_intr_ratio'][idx]), fill='black', font = ImageFont.truetype('arial.ttf', ratio_font_size))
-    #     draw.text((args.video_size[0] / 3, args.image_size[1] + 50), f"Gained experience = ", fill='black', font = ImageFont.truetype('arial.ttf', 40))
-    #     # # Use function
-    #     wrapped_text = wrap_text(str(scn_table_df['C_exp'][idx]).replace("\n", ""), 130)
-    #     # print(f"\n\n############################### the experience is ###############################\n\n{scn_table_df['C_exp'][idx]}")
-    #     # Loop over wrapped text (each line)
-    #     y0, dy = args.image_size[1] + 100, 50  # y0 - initial y value, dy - offset on y axis for new line
-    #     for i, line in enumerate(wrapped_text):
-    #         y = y0 + i*dy
-    #         draw.text((args.video_size[0] / 3, y), line, fill='black', font = ImageFont.truetype('arial.ttf', 30))
-    #     # Convert the image to BGR color (which is the format OpenCV uses)
-    #     frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
-    #     print(f"*********************************finishing the image # {str(idx)} *********************************")
-    #     out.write(frame)  # write the frame
-    #     img.close()  # close the image file
-    #     if idx < 999:
-    #         idx += 1
-    # out.release()
-    # print(f"The video was successfully created at \n{str(os.path.join(save_path, args.video_name))}")
