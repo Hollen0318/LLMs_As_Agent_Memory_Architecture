@@ -203,18 +203,18 @@ if __name__ == "__main__":
 
         env: MiniGridEnv = gym.make(
             id = env_name,
-            render_mode = "rgb_array",
-            # render_mode = "human",
+            # render_mode = "rgb_array",
+            render_mode = "human",
             agent_view_size = args.view,
             screen_size = args.screen
         )
         # env = RGBImgPartialObsWrapper(env, 32)
-        # manual_control = ManualControl(env, seed=args.seed, index = i)
-        # manual_control.start()
+        manual_control = ManualControl(env, seed=args.seed, index = i)
+        manual_control.start()
         # Initilize the environment
-        obs, state = env.reset(seed=args.seed)
+        # obs, state = env.reset(seed=args.seed)
         # img_array = env.render()
         # img = Image.fromarray(img_array)
         # img.save(os.path.join(args.save, f"env_{i}.png"))
-        print(f"obs = {str(obs['mission'])}")
-        env.close()
+        # print(f"obs = {str(obs['mission'])}")
+        # env.close()
