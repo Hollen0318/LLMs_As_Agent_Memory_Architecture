@@ -987,6 +987,9 @@ if __name__ == '__main__':
     pos_m = get_pos_m(args)
     # Iterate over all the environment
     for i in args.envs:
+        # We skip difficult environments first:
+        if i in ["15", "16", "17", "18", "19", "20"]:
+            continue
         # The i is a string representing environment ID, e.g. "1"
         env_id = int(i)
         # For each new environment, the inventory is always 0

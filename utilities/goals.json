@@ -1,0 +1,30 @@
+{
+    "environments": [
+        {
+            "id": 1,
+            "name": "Environment 1",
+            "difficultyLevels": [
+                {
+                    "level": "very easy",
+                    "goals": ["", 2, 3, 4, 5]
+                },
+                {
+                    "level": "easy",
+                    "goals": [1, 2, 3, 4, 5]
+                },
+                {
+                    "level": "medium",
+                    "goals": [1, 2, 3, 4, 5]
+                },
+                {
+                    "level": "hard",
+                    "goals": [1, 2, 3, 4, 5]
+                },
+                {
+                    "level": "very hard",
+                    "goals": [1, 2, 3, 4, 5]
+                }
+            ]
+        }
+    ]
+}
