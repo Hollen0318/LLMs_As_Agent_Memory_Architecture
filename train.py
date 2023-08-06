@@ -945,7 +945,7 @@ if __name__ == '__main__':
     write_log(save_path, f"################## Starting Experiment ##################\n")
     write_log(save_path, f"Configurations are:\n{args}\n")
     # The mapping for the GPT
-    gpt_map = {"3":"gpt-3.5-turbo-16k-0613", "4":"gpt-4-0613"}
+    gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
         exp = open(args.exp_src).read()

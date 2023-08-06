@@ -1,28 +1,45 @@
 {
     "environments": [
         {
-            "id": 1,
-            "name": "Environment 1",
-            "difficultyLevels": [
+            "id": 0,
+            "name": "MiniGrid-BlockedUnlockPickup-v0",
+            "level": [
                 {
                     "level": "very easy",
-                    "goals": ["", 2, 3, 4, 5]
+                    "goals": ["Step forward and turn right", 
+                              "Turn left and step forward",
+                              "Turn right three times and forward",
+                              "Turn left and then foward one step",
+                              "Go forward two steps and turn right, and turn right again"]
                 },
                 {
                     "level": "easy",
-                    "goals": [1, 2, 3, 4, 5]
+                    "goals": ["Move to the front of key",
+                              "Move to the front of Ball",
+                              "Move to the corner",
+                              "Move to the front of any wall",
+                              "Move to the left down corner"]
                 },
                 {
                     "level": "medium",
-                    "goals": [1, 2, 3, 4, 5]
+                    "goals": ["Pick up the key",
+                              "Pick up the ball"]
                 },
                 {
                     "level": "hard",
-                    "goals": [1, 2, 3, 4, 5]
+                    "goals": ["Pick up the key and drop off it to somewhere else",
+                              "Pick up the ball and drop off it to somewhere else",
+                              "Pick up the key, drop it off somewhere, and pick up the ball",
+                              "Pick up the ball, drop if off to somewhere else",
+                              "Pick up the ball, drop it off somewhere, pick up the key, toggle to open the door"]
                 },
                 {
                     "level": "very hard",
-                    "goals": [1, 2, 3, 4, 5]
+                    "goals": ["Open the door",
+                              "Open the door and enter the door",
+                              "Open the door, drop off the key somewhere",
+                              "Open the door, drop off the key somewhere, and pick up the ball",
+                              "Open the door, drop off the key somewhere, and drop the ball into the box"]
                 }
             ]
         }
