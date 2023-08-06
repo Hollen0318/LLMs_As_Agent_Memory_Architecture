@@ -184,12 +184,11 @@ def get_desc(args, env_id, world_map, inv, act_his, obs, exp):
     
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_id_mapping(args):
-    file_name = args.env_id_maps
+    global utilities
     id_mappings = []
-    with open(file_name, "r", encoding = 'utf-8') as file:
-        for line in file:
-            _, env_name = line.strip().split(", ")
-            id_mappings.append(env_name)
+    for env in utilities['env_id_maps'].strip().split("\n"):
+        _, env_name = env.strip().split(", ")
+        id_mappings.append(env_name)
     return id_mappings
 
 # Getting the experience based on two observation, action chosen and action history
@@ -348,9 +347,8 @@ def get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_
 # The object view matrix records how many times an agent has seen each object
 # So it will have a shape of only (10, ) which is recording total number of times agent has seen all objects
 def get_rec(args):
+    global utilities
     # read data from txt file
-    with open(args.env_sizes, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
 
     # parse the data and create matrices
     env_view_rec = {}
@@ -359,8 +357,8 @@ def get_rec(args):
     obj_intr_rec = {}
     obj_view_rec = {}
 
-    for line in lines:
-        env_id, h, w = map(int, line.strip().split(','))
+    for env in utilities['env_sizes'].strip().split("\n"):
+        env_id, h, w = map(int, env.strip().split(','))
         env_view_rec[env_id] = np.zeros((h, w))
         env_step_rec[env_id] = np.zeros((h, w))
         env_memo_rec[env_id] = np.zeros((h, w))
@@ -439,13 +437,11 @@ def get_reason(args, world_map, inv, act_his, obs, exp, desc):
 
 # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
 def get_world_maps(args):
-    with open(args.env_sizes, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-
     # parse the data and create world maps
     world_map = {}
-    for line in lines:
-        env_id, h, w = map(int, line.strip().split(','))
+    global utilities
+    for env in utilities['env_sizes'].strip().split("\n"):
+        env_id, h, w = map(int, env.strip().split(", "))
         world_map[env_id] = np.empty((3, h, w), dtype = object)    
         # the three dimensions will be object, color and status, we intiialize them seperately now 
         world_map[env_id][0] = np.full((h, w), "-", dtype = object)
@@ -465,6 +461,11 @@ def left_arrow(arrow):
     elif arrow == "Right":
         r_arrow = "Up"
     return r_arrow
+
+# Load the utilities JSON
+def load_utilities_JSON(args,):
+    with open(args.utilities, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 def right_arrow(arrow):
     r_arrow = ""
@@ -739,22 +740,10 @@ if __name__ == '__main__':
         help = "to load all the environments if given",
     )
     parser.add_argument(
-        "--act-temp",
-        default = "./utilities/act_msg.txt",
-        type = str,
-        help = "the location to load your reason to act prompt message template"
-    )
-    parser.add_argument(
         "--API-key",
         default = "./utilities/API/API_KEY",
         type = str,
         help = "the location to load your OpenAI API Key"
-    )
-    parser.add_argument(
-        "--cvt-reason",
-        default = "./utilities/cvt_reason_to_act.txt",
-        type = str,
-        help = "the location to load the convert reason to action system message"
     )
     parser.add_argument(
         "--desc",
@@ -763,45 +752,15 @@ if __name__ == '__main__':
         help = "the token limits for observation description"
     )
     parser.add_argument(
-        "--desc_temp",
-        default = "./utilities/desc_msg.txt",
-        type = str,
-        help = "the location to load the describe hint message"
-    )
-    parser.add_argument(
         "--envs",
         nargs = "+",
         help = "list of environment names, see the ./utilities/envs_mapping.txt for mapping between index and env",
         default = ["0"]
     )
     parser.add_argument(
-        "--env-id-maps",
-        type = str,
-        help = "the environment ID and environment name mapping",
-        default = "./utilities/env_id_maps.txt"
-    )
-    parser.add_argument(
-        "--env-sizes",
-        type = str,
-        help = "the environment ID and environment map size",
-        default = "./utilities/env_sizes.txt"
-    )
-    parser.add_argument(
-        "--env-pos",
-        type = str,
-        help = "the re-spawn position of the agent in each map (when seed = 23)",
-        default = "./utilities/env_pos_23.txt"
-    )
-    parser.add_argument(
         "--exp-src",
         type = str,
         help = "the starting experience read path"
-    )
-    parser.add_argument(
-        "--fuc-msg",
-        type = str,
-        default = "./utilities/fuc_msg.txt",
-        help = "the path to read the function prompt message"
     )
     parser.add_argument(
         "--goal",
@@ -844,34 +803,10 @@ if __name__ == '__main__':
         default = "LLM As Agent"
     )
     parser.add_argument(
-        "--reason_temp",
-        default = "./utilities/reason_msg.txt",
-        type = str,
-        help = "the location to load your reason prompt message template"
-    )
-    parser.add_argument(
         "--reason",
         type = int,
         default = 50, 
         help = "the token limits for reason of choice"
-    )
-    parser.add_argument(
-        "--refl-temp",
-        default = "./utilities/refl_msg.txt",
-        type = str,
-        help = "the location to load your reflect prompt message template"
-    )
-    parser.add_argument(
-        "--refresh",
-        type = int,
-        default = 6,
-        help = "the maximum number of action history"
-    )
-    parser.add_argument(
-        "--rpt-temp",
-        default = "./utilities/rpt_msg.txt",
-        type = str,
-        help = "the location to load your exploration report template format"
     )
     parser.add_argument(
         "--rty-dly",
@@ -892,33 +827,22 @@ if __name__ == '__main__':
         default = 23
     )
     parser.add_argument(
-        "--static",
-        action = "store_true",
-        help = "the agent will not update experience during the exploration"
-    )
-    parser.add_argument(
         "--steps",
         type = int,
         default = 2000,
         help = "the maximum numbers of steps each environment will be taken"
     )
     parser.add_argument(
-        "--sum-temp",
-        default = "./utilities/sum_msg.txt",
-        type = str,
-        help = "the location to load your summarization prompt message template"
-    )
-    parser.add_argument(
-        "--sys-temp",
-        type = str,
-        default = "./utilities/sys_msg.txt",
-        help = "the location to load your hint message as agent's system background"
-    )
-    parser.add_argument(
         "--temp",
         type = float,
         default = 0.7,
         help = "the temprature used by the OpenAI API"
+    )
+    parser.add_argument(
+        "--utilities",
+        type = str,
+        default = "utilities/utilities.json",
+        help = "the path to load your utilities JSON file storing all texts, environment name, start position etc"
     )
     parser.add_argument(
         "--view",
@@ -963,14 +887,16 @@ if __name__ == '__main__':
             config = vars(args)
         )
     
-
     # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
     if args.all:
         args.envs = [str(i) for i in range(58)]
     
-    with open(args.sys_temp, 'r', encoding='utf-8') as file:
-        sys_msg = file.read()
-    sys_msg_s = sys_msg.format(str(args.refresh))
+    # Load the overall utitlies JSON
+    utilities = load_utilities_JSON(args)
+    
+    sys_msg = utilities['sys_msg']
+    sys_msg_s = sys_msg.format(str(args.memo))
+
     if args.log:
         print(f"\n################## System Message ##################\n")
         print(sys_msg_s)

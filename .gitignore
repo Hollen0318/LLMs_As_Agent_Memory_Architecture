@@ -7,5 +7,5 @@ try.py
 utilities/API/API_KEY
 Minigrid/
 utilities/env_scn_23
-utilities/create_json copy.py
 utilities/create_json.py
+test.ipynb
