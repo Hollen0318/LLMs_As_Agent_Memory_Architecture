@@ -300,16 +300,13 @@ def get_path(args):
 
 # Function to get re-spawn position (when seed = 23 only)
 def get_pos_m(args):
-    # read data from txt file
-    with open(args.env_pos, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-
+    global utilities
+    key_name = "env_pos_" + str(args.seed)
     # parse the data and create matrices
     pos_m = {}
-    for line in lines:
-        env_id, x, y, arrow = line.strip().split(', ')
+    for env in utilities[key_name].strip().split("\n"):
+        env_id, x, y, arrow = env.strip().split(', ')
         pos_m[int(env_id)] = (int(x), int(y), arrow)
-
     return pos_m
 
 def get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec):
@@ -746,6 +743,11 @@ if __name__ == '__main__':
         help = "the location to load your OpenAI API Key"
     )
     parser.add_argument(
+        "--cross",
+        action = "store_true",
+        help = "whether will agent bring experience from the past environment"
+    )
+    parser.add_argument(
         "--desc",
         type = int,
         default = 50, 
@@ -942,27 +944,31 @@ if __name__ == '__main__':
             env_table = wandb.Table(columns = ["env_view_rec", "env_step_rec", "env_memo_rec"])
             obj_table = wandb.Table(columns = ["obj_intr_rec", "obj_view_rec"])
             world_map_table = wandb.Table(columns = ["world_map_obj", "world_map_col", "world_map_sta"])
+        
         # we save them to the csv
         # Define table structure
         scn_table_columns = ["Image", "Message", "Reason", "Action", "N_exp", "C_exp"]
         env_table_columns = ["Env_View", "Env_Step", "Env_Memo"]
         obj_table_columns = ["Obj_Intr", "Obj_View"]
         world_map_table_columns = ["World_Map_Object", "World_Map_Color", "World_Map_Status"]
+        metrics_table_columns = ["env_view_ratio", "env_memo_ratio", "env_step_ratio", "obj_view_ratio", "obj_intr_ratio", "exp_length"]
 
         scn_table_df = pd.DataFrame(columns=scn_table_columns)
         env_table_df = pd.DataFrame(columns=env_table_columns)
         obj_table_df = pd.DataFrame(columns=obj_table_columns)
         world_map_table_df = pd.DataFrame(columns=world_map_table_columns)
-        metrics_df = pd.DataFrame(columns=["env_view_ratio", "env_memo_ratio", "env_step_ratio", "obj_view_ratio", "obj_intr_ratio", "exp_length"])
-
+        metrics_table_df = pd.DataFrame(columns=metrics_table_columns)
 
         # Initilize the environment
         obs, state = env.reset(seed=args.seed)
+
         # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
         p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+        
         if args.log:
             print(f"\n####################################### The first p_obj p_col p_sta is {p_obj} {p_col} {p_sta} #######################################\n")
         write_log(save_path, f"\n####################################### The first p_obj p_col p_sta is {p_obj} {p_col} {p_sta} #######################################\n")
+        
         # Iterate the agent exploration within the limit of args.steps
         if args.wandb:
             # scn_table.add_data(wandb.Image(img), act_msg_s, act, n_exp, c_exp)
@@ -987,7 +993,7 @@ if __name__ == '__main__':
         env_table_df.loc[len(env_table_df)] = [str(env_view_rec[env_id]).replace(".", ""), str(env_step_rec[env_id]).replace(".", ""), str(env_memo_rec[env_id]).replace(".", "")]
         obj_table_df.loc[len(obj_table_df)] = [str(obj_intr_rec[env_id]), str(obj_view_rec[env_id])]
         world_map_table_df.loc[len(world_map_table_df)] = [str(world_map[env_id][0]).replace("'", ""), str(world_map[env_id][1]).replace("'", ""), str(world_map[env_id][2]).replace("'", "")]
-        metrics_df.loc[len(metrics_df)] = [env_view_ratio, env_memo_ratio, env_step_ratio, obj_view_ratio, obj_intr_ratio, exp_length]
+        metrics_table_df.loc[len(metrics_table_df)] = [env_view_ratio, env_memo_ratio, env_step_ratio, obj_view_ratio, obj_intr_ratio, exp_length]
 
         metrics = {
             "env_view_ratio": env_view_ratio,
@@ -1001,7 +1007,7 @@ if __name__ == '__main__':
         if args.wandb:
             # Log the metrics
             wandb.log(metrics)
-            wandb.log(metrics_df.iloc[-1].to_dict())
+            # wandb.log(metrics_table_df.iloc[-1].to_dict())
 
         img_array = env.render()
         img = Image.fromarray(img_array)
