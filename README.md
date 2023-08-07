@@ -1,66 +1,53 @@
-# LLM As Agent
+# LLM As Agent Training Script
 
-Project Repository for LLM As Agent project code
+## Description
+This script allows the training of an agent using OpenAI's GPT model in a MiniGrid environment. The agent can interact with the environment, make decisions based on its observations, and log its actions and decisions for further analysis.
 
-## Introduction
-
-This repository includes algorithm for training an agent embodied with LLM to explore environments from scratch, adapt during exploration.
-
-## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
+## Installation
 
 ### Prerequisites
+- Python 3.x
+- pip
 
-You need to have `git` and `conda` installed on your machine. To install these, you can use the following commands:
+### Packages Installation
+```bash
+pip install argparse openai gym wandb pandas PIL
+```
 
-### Installing dependencies
+## Usage
 
-```shell
+### Cloning the Repository
+```bash
 git clone https://github.com/general-robotics-duke/LLM_As_Agent.git
-cd LLMS_AS_AGENT
-conda env create -f environment.yml
-conda activate minigrid
+cd LLM_As_Agent
 ```
 
-## Quick Start
+### Command Line Arguments
 
-0. Paste your OpenAI API Key under the utilities/API/API_1 if you don't want to specify it in the run. 
+1. `--all`: Load all the environments.
+2. `--API-key`: Location to load your OpenAI API Key. Default is `./utilities/API/API_KEY`.
+3. `--cross`: Whether the agent will bring experience from the past environment.
+4. `--desc`: Token limits for observation description. Default is `50`.
+5. `--envs`: List of environment names. Default is `["0"]`. See `./utilities/envs_mapping.txt` for mapping between index and environment.
+6. `--exp-src`: Starting experience read path.
+7. `--goal`: Include the text goal into the observation description.
+8. `--gpt`: The version of GPT, either `3` or `4`. Default is `3`.
+9. `--input`: If the action and experience will be given by the user instead of generating from GPT.
+10. `--lim`: Token limit for the experience. Default is `50`.
+11. `--log`: Print logging information.
+12. `--memo`: How long the agent can remember past scenes. Default is `5`.
+13. `--prj-name`: The project name for your wandb. Default is `LLM As Agent`.
+14. `--reason`: Token limit for the reason of choice. Default is `50`.
+15. `--rty-dly`: Delay in seconds during OpenAI API Calling. Default is `5`.
+16. `--screen`: Resolution for pygame rendering. Default is `640`.
+17. `--seed`: Random seed for reproducing results. Default is `23`.
+18. `--steps`: Maximum number of steps each environment will be taken. Default is `2000`.
+19. `--temp`: Temperature used by the OpenAI API. Default is `0.7`.
+20. `--utilities`: Path to load the utilities JSON file. Default is `utilities/utilities.json`.
+21. `--view`: Number of grid spaces visible in agent-view. Default is `7`.
+22. `--wandb`: Use wandb to record experiments.
 
-1. Test the environment with `--API-key` stored under `./utilities/API/API_1`,`--sys-msg` under `./utilities/n_sys_msg.txt` with all other settings in default. (`--overwrite` will replace the same experiment configs experiment setting)
-
-```shell
-python train.py --log --steps 5 --desc 10 --lim 10 --memo 5 --reason 10  
+### Demo Usage
+```bash
+python train.py --log --steps 5 --desc 40 --lim 40 --memo 5 --reason 40
 ```
-
-## Command Line Arguments
-
-Here are the available command line arguments you can use when running this project:
-
-- `--all`: If provided, loads all environments.
-- `--API-key`: Specifies the location of your OpenAI API Key. Default: `./utilities/API/API_1`
-- `--disp`: If provided and in a GUI environment, displays environment rendering.
-- `--envs`: Specifies list of environment names. Refer to `./utilities/envs_mapping.txt` for mapping between index and environment. Default: `["1"]`
-- `--exp-msg`: Specifies the path to the hint message for an experience. Default: `./utilities/exp_msg.txt`
-- `--exp-src`: Specifies the starting experience read path.
-- `--fuc-msg`: Specifies the path to the function helper message. Default: `./utilities/fuc_msg.txt`
-- `--goal`: If provided, includes the text goal into the observation description.
-- `--gpt`: Specifies the version of GPT to use. Options are "3" or "4". Default: "3"
-- `--input`: If provided, action and experience will be given by the user instead of GPT.
-- `--lim`: Specifies the word limit for the experience. Default: `300`
-- `--log`: If provided, prints logging information.
-- `--max-rty`: Specifies the maximum number of delays in OpenAI API Calling. Default: `5`
-- `--mry`: Whether the agent will have memory about past experiences.
-- `--overwrite`: If provided, overwrites the same experiment setting.
-- `--prj-name`: Specifies the project name for your wandb. Default: `LLM As Agent`
-- `--rel-des`: If provided, uses relative position description as observation description, otherwise uses pure array print.
-- `--rty-dly`: Specifies the number of seconds to delay when in OpenAI API Calling. Default: `1`
-- `--rvw-msg`: The review message location to read (default is ./utilities/rvw_msg.txt).
-- `--screen`: Sets the resolution for pygame rendering (width and height). Default: `640`
-- `--seed`: Sets the random seed for reproducing results. Default: `23`
-- `--static`: If provided, the agent will not update the experience during the exploration.
-- `--steps`: Sets the maximum number of steps each environment will take. Default: `20`
-- `--sys-msg`: Specifies the path to the hint message for an action. Default: `./utilities/sys_msg.txt`
-- `--temp`: Specifies the temperature used by the OpenAI API. Default: `0.0`
-- `--view`: Sets the number of grid spaces visible in agent-view. Default: `3`
-- `--wandb`: If provided, uses wandb to record experiments.
