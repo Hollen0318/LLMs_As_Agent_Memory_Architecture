@@ -16,7 +16,7 @@ import re
 
 # Function to return what GPT returns in sring format
 def choose_act(action):
-    return str(action)
+    return action
 
 def count_tokens(string):
     # Define a pattern that matches words composed of alphanumeric characters
@@ -49,14 +49,13 @@ def cvt_act(args, inv, act, fro_obj_l):
 def get_action(args, reason):
     global save_path
     global gpt_map
-    if args.log:
-        print(f"\n\n################## Start Deciding ##################\n\n")
-    write_log(save_path, f"\n\n################## Start Deciding ##################\n\n")
+    global utilities
+    write_log(args, save_path, f"\n\n################## Start Deciding ##################\n\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
         # A demo action when using input
-        act = input(f"""Choose your action using an integer from 0 - 5 (integer only): 
+        act = input(f"""Choose an action or a mutiple step actions plan from the following: 
 (0) left: turn your view to the left object
 (1) right: turn your view to the right object
 (2) toggle: toggle the object in front of you
@@ -65,19 +64,31 @@ def get_action(args, reason):
 (5) drop off: drop off the current inventory if front is empty\n\n""")
         return act_obj_pair[act]
     else:
-        with open(args.cvt_reason, 'r', encoding = 'utf-8') as file:
-            sys_msg_s = file.read()
-        with open(args.act_temp, 'r', encoding = 'utf-8') as file:
-            act_msg = file.read()
+        act_msg = utilities['act_msg']
         act_msg_s = act_msg.format(reason)
         valid = [i for i in range(6)]
-        msg = [{"role": "system", "content": sys_msg_s}]
-        fuc_msg = open(args.fuc_msg).read()
-        fuc = [{"name": "choose_act","description":fuc_msg,"parameters":{"type":"object", "properties":{"action":{"type":"integer", "description":"the action to take (in integer)","enum":[i for i in range(6)]}}}}]
+        msg = [{"role": "system", "content": "You are an expert in analyzing the reason of choices and convert them into most accurate action or step by step actions defined by users by calling the function named \"choose_act\""}]
+        msg.append({"role": "assistant", "content": "Sure, give me your reason of choices and I will convert it into most accurate action or multiple step actions corresponding to that reasons"})
+        fuc_msg = utilities['fuc_msg']
+        fuc = [
+            {
+                "name": "choose_act",
+                "description":fuc_msg,
+                "parameters":{
+                    "type":"object",
+                    "properties":{
+                        "action":
+                        {"type":"integer",
+                         "description":"the action to take (in integer)",
+                        },
+                        "required":["action"],
+                    }
+                }
+            }
+        ]
         msg.append({"role": "user", "content": act_msg_s})
-        if args.log:
-            print(f"Prompt message = \n\n{act_msg_s}")
-        write_log(save_path, f"Prompt message = \n\n{act_msg_s}")
+        write_log(args, save_path, f"Prompt message = \n\n{act_msg_s}")
+
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -103,25 +114,28 @@ def get_action(args, reason):
                             )
                             break
             except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(save_path, f"Caught an error: {e}\n")
+                write_log(args, save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
-    if args.log:
-        print(f"\n\n***************** Gained Action *****************\n\n")
-        print(f"{act_obj_pair[act]}\n")
-    write_log(save_path, f"\n\n***************** Gained Action *****************\n\n")
-    write_log(save_path, f"{act_obj_pair[act]}\n")
-    return act_obj_pair[act]
+        if isinstance(act, int):
+            write_log(args, save_path, f"\n\n***************** Single Action *****************\n\n")
+            write_log(args, save_path, f"{act_obj_pair[str(act)]}")
+            return act_obj_pair[str(act)]
+        elif isinstance(act, list):
+            write_log(args, save_path, f"\n\n***************** Multiple Actions *****************\n\n")
+            write_log(args, save_path, f"{act}")
+        else:
+            write_log(args, save_path, "act is neither an integer nor a list.")
+    
+    return act
+
 # Get the observation representation description, to aid in the decision making
 def get_desc(args, env_id, world_map, inv, act_his, obs, exp):
     desc = f"This is environment #{str(env_id)}\n"
     global save_path
     global gpt_map
-    if args.log:
-        print(f"\n\n################## Start Describing ##################\n\n")
-    write_log(save_path, f"\n\n################## Start Describing ##################\n\n")
+    global utilities
+    write_log(args, save_path, f"\n\n################## Start Describing ##################\n\n")
     
     if args.input:
         # A demo action when using input
@@ -129,9 +143,7 @@ def get_desc(args, env_id, world_map, inv, act_his, obs, exp):
         return desc
     else:
         # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
-        with open(args.sys_temp, 'r', encoding='utf-8') as file:
-            sys_msg = file.read()
-        sys_msg_s = sys_msg.format(str(args.refresh))
+        global sys_msg_s    
         # Then we need the observation message, which we will fill the act_temp.txt
         obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
         col_map_s = np.array2string(world_map[env_id][1]).replace("'", "").replace("\"","")
@@ -146,18 +158,15 @@ def get_desc(args, env_id, world_map, inv, act_his, obs, exp):
             desc_msg = file.read()
         if args.goal:
             goal = f"Your goal is {obs['mission']}"
-            desc_msg_s = desc_msg.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, goal, str(args.desc))
+            desc_msg_s = desc_msg.format(str(env_id), obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, goal, str(args.desc))
         else:
-            desc_msg_s = desc_msg.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, "", str(args.desc))
-        if args.goal:
-            sys_msg_s += "\nYou will be prompted a goal specific to the environment.\n"
-        msg = [{"role": "system", "content": "Your mission is to understand deeply and follow a interpretation format to describe a text-based environment"}]
+            desc_msg_s = desc_msg.format(str(env_id), obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, "", str(args.desc))
+
+        msg = [{"role": "system", "content": "Your mission is to understand deeply and follow a interpretation format to describe a text-based environment as follows:"}]
         msg.append({"role": "user", "content": sys_msg_s})
-        msg.append({"role": "assistant", "content": "Sure, give me the real world map, inventory, past actions and experience, I will describe to fulfill the mission"})
+        msg.append({"role": "assistant", "content": "Sure, give me the real world map, inventory, past actions and experience, I will describe about it to aid in fulfilling the mission"})
         msg.append({"role": "user", "content": desc_msg_s})
-        if args.log:
-            print(f"Prompt message = \n\n{desc_msg_s}")
-        write_log(save_path, f"Prompt message = \n\n{desc_msg_s}")
+        write_log(args, save_path, f"Prompt message = \n\n{desc_msg_s}")
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -170,16 +179,11 @@ def get_desc(args, env_id, world_map, inv, act_his, obs, exp):
                 desc += rsp["choices"][0]["message"]["content"]
                 break
             except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(save_path, f"Caught an error: {e}\n")
+                write_log(args, save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
-    if args.log:
-        print(f"\n\n***************** Gained Description *****************\n\n")
-        print(f"{desc}")
-    write_log(save_path, f"\n\n***************** Gained Description *****************\n\n")
-    write_log(save_path, f"{desc}")
+    write_log(args, save_path, f"\n\n***************** Gained Description *****************\n\n")
+    write_log(args, save_path, f"{desc}")
     return desc
     
 # Get the mapping list between 0,1,2,3 and environment names in a list
@@ -195,9 +199,7 @@ def get_env_id_mapping(args):
 def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_inv, act_his):
     global save_path
     global gpt_map
-    if args.log:
-        print(f"\n################## Starting Reflection ##################\n")
-    write_log(save_path, f"\n################## Starting Reflection ##################\n")
+    write_log(args, save_path, f"\n################## Starting Reflection ##################\n")
     if args.input:
         return "new experience"
     else:
@@ -225,14 +227,11 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
             n_goal = ""
         act_his_s = ", ".join(act_his) 
         refl_msg_s = refl_msg.format(str(o_world_map[env_id][0]).replace("'", ""), str(o_world_map[env_id][1]).replace("'", ""), str(o_world_map[env_id][2]).replace("'", ""), o_inv_s, act, o_goal, str(n_world_map[env_id][0]).replace("'", ""), str(n_world_map[env_id][1]).replace("'", ""), str(n_world_map[env_id][2]).replace("'", ""), n_inv_s, n_goal, act_his_s, str(max(int(args.lim * (env_id + 1) / len(args.envs)), args.lim // 2)))
-        if args.goal:
-            sys_msg_s += "You will be prompted a goal in the environment.\n"
+
         msg = [{"role": "system", "content": "Your mission is to discover the experience learned from exploring a text based environment, based on previous and after an action observation difference."}]
         msg.append({"role": "user", "content": sys_msg_s})
         msg.append({"role": "assistant", "content" : "Sure, give me two world map, inventory, past actions so I can discover experience from them"})
-        if args.log:
-            print(f"\nPrompt Message = \n\n{refl_msg_s}")
-        write_log(save_path, f"\nPrompt Message = \n\n{refl_msg_s}")
+        write_log(args, save_path, f"\nPrompt Message = \n\n{refl_msg_s}")
         msg.append({"role": "user", "content": refl_msg_s})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
@@ -246,16 +245,11 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
                 n_exp = rsp["choices"][0]["message"]["content"]
                 break
             except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(save_path, f"Caught an error: {e}\n")
+                write_log(args, save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
-        if args.log:
-            print(f"\n\n***************** Gained Experience *****************\n\n")
-            print(f"{n_exp}")
-        write_log(save_path, f"\n\n***************** Gained Experience *****************\n\n")
-        write_log(save_path, f"{n_exp}")
+        write_log(args, save_path, f"\n\n***************** Gained Experience *****************\n\n")
+        write_log(args, save_path, f"{n_exp}")
 
         return n_exp
 
@@ -325,10 +319,7 @@ def get_ratios(args, env_id, env_view_rec, env_step_rec, env_memo_rec, obj_intr_
 
     obj_view_r = np.count_nonzero(obj_view_rec[env_id]) / np.size(obj_view_rec[env_id]) * 100
     obj_view_r_s = "{:.3f}%".format(obj_view_r)
-    
-    if args.log:
-        print(f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r_s}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
-    write_log(save_path, f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r_s}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
+    write_log(args, save_path, f"\nenv view ratio = {env_view_r_s}\nenv step ratio = {env_step_r_s}\nenv memo ratio = {env_memo_r_s}\nobj intr ratio = {obj_intr_r_s}\nobj view ratio = {obj_view_r_s}\n")
     
     return env_view_r, env_step_r, env_memo_r, obj_intr_r, obj_view_r
 
@@ -368,9 +359,9 @@ def get_rec(args):
 def get_reason(args, world_map, inv, act_his, obs, exp, desc):
     global save_path
     global gpt_map
-    if args.log:
-        print(f"\n\n################## Start Deciding ##################\n\n")
-    write_log(save_path, f"\n\n################## Start Deciding ##################\n\n")
+    global sys_msg_s
+    global utilities
+    write_log(args, save_path, f"\n\n################## Start Deciding ##################\n\n")
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     if args.input:
@@ -378,13 +369,8 @@ def get_reason(args, world_map, inv, act_his, obs, exp, desc):
         reason = "Reason of choice"
         return reason, "action message"
     else:
-        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
-        with open(args.sys_temp, 'r', encoding='utf-8') as file:
-            sys_msg = file.read()
-        sys_msg_s = sys_msg.format(str(args.refresh))
-        # Then we need the observation message, which we will fill the act_temp.txt
-        with open(args.reason_temp, 'r', encoding='utf-8') as file:
-            reason_msg = file.read()
+        # Then we need the observation message
+        reason_msg = utilities['reason_msg']
         obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
         col_map_s = np.array2string(world_map[env_id][1]).replace("'", "").replace("\"","")
         sta_map_s = np.array2string(world_map[env_id][2]).replace("'", "").replace("\"","")
@@ -399,15 +385,12 @@ def get_reason(args, world_map, inv, act_his, obs, exp, desc):
             reason_msg_s = reason_msg.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, goal, desc, str(args.reason))
         else:
             reason_msg_s = reason_msg.format(obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, "", desc, str(args.reason))
-        if args.goal:
-            sys_msg_s += "\nYou will be prompted a goal specific to the environment.\n"
+
         msg = [{"role": "system", "content":  "You mission to be an agent that's about to explore a text based world, with environment observation representation provided by user."}]
         msg.append({"role": "user", "content": sys_msg_s})
-        msg.append({"role": "assistant", "content": "Sure, give me the observation in world map, inventory, past actions and experience."})
+        msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory, past actions and experience format and I will decide to make one move or multiple step moves."})
         msg.append({"role": "user", "content": reason_msg_s})
-        if args.log:
-            print(f"Prompt message = \n\n{reason_msg_s}")
-        write_log(save_path, f"Prompt message = \n\n{reason_msg_s}")
+        write_log(args, save_path, f"Prompt message = \n\n{reason_msg_s}")
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
             try:
@@ -420,16 +403,11 @@ def get_reason(args, world_map, inv, act_his, obs, exp, desc):
                 reason = rsp["choices"][0]["message"]["content"]
                 break
             except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(save_path, f"Caught an error: {e}\n")
+                write_log(args, save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
-    if args.log:
-        print(f"\n\n***************** Gained Reason *****************\n\n")
-        print(f"{reason}")
-    write_log(save_path, f"\n\n***************** Gained Reason *****************\n\n")
-    write_log(save_path, f"{reason}")
+    write_log(args, save_path, f"\n\n***************** Gained Reason *****************\n\n")
+    write_log(args, save_path, f"{reason}")
     return reason, reason_msg_s
 
 # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
@@ -479,9 +457,7 @@ def right_arrow(arrow):
 def sum_exp(args, n_exp, o_exp, act_his):
     global save_path
     global gpt_map
-    if args.log:
-        print(f"\n\n################## Starting Summarizing ##################\n\n")
-    write_log(save_path, f"\n\n################## Starting Summarizing ##################\n\n")
+    write_log(args, save_path, f"\n\n################## Starting Summarizing ##################\n\n")
     if args.input:
         return "summarized experience"
     else:
@@ -494,12 +470,9 @@ def sum_exp(args, n_exp, o_exp, act_his):
         with open(args.sum_temp, 'r', encoding='utf-8') as file:
             sum_msg = file.read()
         sum_msg_s = sum_msg.format(o_exp, n_exp, act_his_s, str(max(int(args.lim * (env_id + 1) / len(args.envs)), args.lim // 2)))
-        if args.goal:
-            sys_msg_s += "You will be prompted a goal in the environment.\n"
+
         msg = [{"role": "system", "content": "You mission is comparing the  new and past experience, summarize them up to give more complete and better experience"}]
-        if args.log:
-            print(f"Prompt Message = \n\n{sum_msg_s}")
-        write_log(save_path, f"Prompt Message = \n\n{sum_msg_s}")
+        write_log(args, save_path, f"Prompt Message = \n\n{sum_msg_s}")
         msg.append({"role": "user", "content": sum_msg_s})
         retry_delay = args.rty_dly  # wait for 1 second before retrying initially
         while True:
@@ -513,16 +486,11 @@ def sum_exp(args, n_exp, o_exp, act_his):
                 c_exp = rsp["choices"][0]["message"]["content"]
                 break
             except Exception as e:
-                if args.log:
-                    print(f"Caught an error: {e}\n")
-                write_log(save_path, f"Caught an error: {e}\n")
+                write_log(args, save_path, f"Caught an error: {e}\n")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # double the delay each time we retry
-        if args.log:
-            print(f"\n\n***************** Summarized Experience *****************\n\n")
-            print(f"{c_exp}")
-        write_log(save_path, f"\n\n***************** Summarized Experience *****************\n\n")
-        write_log(save_path, f"{c_exp}")
+        write_log(args, save_path, f"\n\n***************** Summarized Experience *****************\n\n")
+        write_log(args, save_path, f"{c_exp}")
         return c_exp
 
 # Update the position based on the arrow and previous position    
@@ -715,15 +683,14 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
                 world_map[env_id][0][row][col] = "-"
                 world_map[env_id][1][row][col] = "-"
                 world_map[env_id][2][row][col] = "-"
-    if args.log:
-        print(f"\n################## Debugging Position ##################\n")
-        print(f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
-    write_log(save_path, f"\n################## Debugging Position ##################\n")
-    write_log(save_path, f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
+    write_log(args, save_path, f"\n################## Debugging Position ##################\n")
+    write_log(args, save_path, f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
     return p_obj, p_col, p_sta
 
 # Function to write the logging infos in to log save file
-def write_log(save_path, text):
+def write_log(args, save_path, text):
+    if args.log:
+        print(text)
     # Open the file in append mode
     with open(os.path.join(save_path, f"log.txt"), "a", encoding='utf-8') as file:
         # Write the strings to the file
@@ -865,13 +832,12 @@ if __name__ == '__main__':
 
     # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
     # experience or an evolving experience will be dependent on the arguments. 
-    if args.log:
-        print(f"################## Starting Experiment ##################\n")
-        print(f"Configurations are:\n{args}\n")
-    write_log(save_path, f"################## Starting Experiment ##################\n")
-    write_log(save_path, f"Configurations are:\n{args}\n")
+    write_log(args, save_path, f"################## Starting Experiment ##################\n")
+    write_log(args, save_path, f"Configurations are:\n{args}\n")
+
     # The mapping for the GPT
     gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
+
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:
         exp = open(args.exp_src).read()
@@ -895,24 +861,19 @@ if __name__ == '__main__':
     
     # Load the overall utitlies JSON
     utilities = load_utilities_JSON(args)
-    
-    sys_msg = utilities['sys_msg']
-    sys_msg_s = sys_msg.format(str(args.memo))
-
-    if args.log:
-        print(f"\n################## System Message ##################\n")
-        print(sys_msg_s)
-    write_log(save_path, f"\n################## System Message ##################\n")
-    write_log(save_path, sys_msg_s)
 
     # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
     world_map = get_world_maps(args)
+    
     # Get the two record matrix for all environments, with environment and object level
     env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(args)
+    
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
+    
     # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
     pos_m = get_pos_m(args)
+    
     # Iterate over all the environment
     for i in args.envs:
         # We skip difficult environments first:
@@ -920,17 +881,29 @@ if __name__ == '__main__':
             continue
         # The i is a string representing environment ID, e.g. "1"
         env_id = int(i)
+        
+        sys_msg = utilities['sys_msg']
+        sys_msg_s = sys_msg.format(str(world_map[env_id][0].shape[0]), str(world_map[env_id][0].shape[1]), str(args.memo))
+        
+        if args.goal:
+            sys_msg_s += "\nYou will be prompted a goal specific to the environment.\n"
+
+        write_log(args, save_path, f"\n################## System Message ##################\n")
+        write_log(args, save_path, sys_msg_s)
+
         # For each new environment, the inventory is always 0
         inv = 0
+        
         # For every new environment, the action history is always 0 (empty)
         act_his = []
+        
         # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
         pos_x, pos_y, arrow = pos_m[env_id]
+        
         # Get environment name from the mapping
         env_name = envs_id_mapping[env_id]
-        if args.log:
-            print(f"\nLoading environment = {env_name}")
-        write_log(save_path, f"Loading environment = {env_name}")
+
+        write_log(args, save_path, f"Loading environment = {env_name}")
 
         env: MiniGridEnv = gym.make(
             id = env_name,
@@ -964,10 +937,6 @@ if __name__ == '__main__':
 
         # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
         p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-        
-        if args.log:
-            print(f"\n####################################### The first p_obj p_col p_sta is {p_obj} {p_col} {p_sta} #######################################\n")
-        write_log(save_path, f"\n####################################### The first p_obj p_col p_sta is {p_obj} {p_col} {p_sta} #######################################\n")
         
         # Iterate the agent exploration within the limit of args.steps
         if args.wandb:
@@ -1092,9 +1061,7 @@ if __name__ == '__main__':
                         n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
                     else:
                         n_pos_x, n_pos_y = pos_x, pos_y
-                if args.log:
-                    print(f"\n******************************************* Doing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
-                write_log(save_path, f"\n******************************************* Doing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
+                write_log(args, save_path, f"\n******************************************* Doing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
                 world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
@@ -1134,9 +1101,7 @@ if __name__ == '__main__':
                     pos_x = n_pos_x
                     pos_y = n_pos_y
                     arrow = n_arrow
-                if args.log:
-                    print(f"The front object being interacted with is {front_obj}")
-                write_log(save_path, f"The front object being interacted with is {front_obj}")
+                write_log(args, save_path, f"The front object being interacted with is {front_obj}")
                 obj_intr_rec[env_id][0][front_obj] += 1
                 _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his)
@@ -1170,9 +1135,7 @@ if __name__ == '__main__':
                     if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                         n_inv = 0
                 front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-                if args.log:
-                    print(f"The front object being interacted with is {front_obj}")
-                write_log(save_path, f"The front object being interacted with is {front_obj}")
+                write_log(args, save_path, f"The front object being interacted with is {front_obj}")
                 obj_intr_rec[env_id][1][front_obj] += 1
                 _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
@@ -1209,9 +1172,7 @@ if __name__ == '__main__':
                     else:
                         n_inv = inv
                 front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-                if args.log:
-                    print(f"The front object being interacted with is {front_obj}")
-                write_log(save_path, f"The front object being interacted with is {front_obj}")
+                write_log(args, save_path, f"The front object being interacted with is {front_obj}")
                 obj_intr_rec[env_id][2][front_obj] += 1
                 _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his)
