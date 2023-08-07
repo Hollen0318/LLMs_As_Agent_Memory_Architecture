@@ -1,4 +1,4 @@
-# LLM As Agent Training Script
+# LLM As Agent
 
 ## Description
 This script allows the training of an agent using OpenAI's GPT model in a MiniGrid environment. The agent can interact with the environment, make decisions based on its observations, and log its actions and decisions for further analysis.
@@ -49,5 +49,6 @@ cd LLM_As_Agent
 
 ### Demo Usage
 ```bash
-python train.py --log --steps 5 --desc 40 --lim 40 --memo 5 --reason 40
+python train.py --log --steps 500 --desc 100 --lim 150 --memo 4 --reason 100 --wandb
 ```
+The command python train.py --log --steps 500 --desc 100 --lim 150 --memo 4 --reason 100 --wandb runs the training script for an agent in a MiniGrid environment using OpenAI's GPT model. The script is configured to print logging information (--log), take a maximum of 500 steps in each environment (--steps 500), set a token limit of 100 for the observation description (--desc 100), set a token limit of 150 for the experience (--lim 150), allow the agent to remember past scenes for up to 4 steps (--memo 4), set a token limit of 100 for the reason behind each choice (--reason 100), and record the experiments using Weights & Biases (--wandb).
