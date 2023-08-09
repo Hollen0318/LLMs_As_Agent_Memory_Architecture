@@ -15,58 +15,54 @@ import numpy as np
 import re
 
 # Get the observation representation description, to aid in the decision making
-def get_desc(args, env_id, world_map, inv, act_his, obs, exp, pos_x, pos_y, arrow, lim):
+def get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim):
     desc = f"This is environment #{str(env_id)}\n"
     global save_path
     global gpt_map
     global utilities
     write_log(args, save_path, f"\n\n################## Start Describing ##################\n\n")
     
-    if args.input:
-        # A demo action when using input
-        desc += "Description of observation representation"
-        return desc
+    # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
+    global sys_msg_s    
+    # Then we need the observation message, which we will fill the act_temp.txt
+    obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
+    col_map_s = np.array2string(world_map[env_id][1]).replace("'", "").replace("\"","")
+    sta_map_s = np.array2string(world_map[env_id][2]).replace("'", "").replace("\"","")
+    obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
+    if inv == 0:
+        inv_s = f"You are not holding anything"
     else:
-        # To get an action, we need first to fill the sys_msg.txt with the args.refresh and use it as system message
-        global sys_msg_s    
-        # Then we need the observation message, which we will fill the act_temp.txt
-        obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
-        col_map_s = np.array2string(world_map[env_id][1]).replace("'", "").replace("\"","")
-        sta_map_s = np.array2string(world_map[env_id][2]).replace("'", "").replace("\"","")
-        obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
-        if inv == 0:
-            inv_s = f"You are not holding anything"
-        else:
-            inv_s = f"You are holding a {obj_idx[inv]}"
-        act_his_s = ", ".join(act_his)
-        desc_msg = utilities['desc_msg']
-        arrow_s = arrow[0].lower() + arrow[1:]
-        if args.goal:
-            goal = f"Your goal is {obs['mission']}"
-            desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, goal, str(args.desc))
-        else:
-            desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, act_his_s, exp, "", str(args.desc))
-
-        msg = [{"role": "system", "content": "Your mission is to understand deeply and follow a interpretation format to describe a text-based environment as follows:"}]
-        msg.append({"role": "user", "content": sys_msg_s})
-        msg.append({"role": "assistant", "content": "Sure, give me the real world map, inventory, past actions and experience, I will describe about it to aid in fulfilling the mission"})
-        msg.append({"role": "user", "content": desc_msg_s})
-        write_log(args, save_path, f"Prompt message = \n\n{desc_msg_s}")
-        retry_delay = args.rty_dly  # wait for 1 second before retrying initially
-        while True:
-            try:
-                rsp = openai.ChatCompletion.create(
-                    model = gpt_map[args.gpt],
-                    messages = msg,
-                    temperature = args.temp,
-                    max_tokens = args.desc
-                )
-                desc += rsp["choices"][0]["message"]["content"]
-                break
-            except Exception as e:
-                write_log(args, save_path, f"Caught an error: {e}\n")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # double the delay each time we retry
+        inv_s = f"You are holding a {obj_idx[inv]}"
+    if lim == 0:
+        desc_msg = utilities['eval_desc_msg_no_e']
+        desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, str(lim))
+    else:
+        desc_msg = utilities['eval_desc_msg_e']
+        desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, exp, str(lim))
+    arrow_s = arrow[0].lower() + arrow[1:]
+    msg = [{"role": "system", "content": "Your mission is to understand deeply and follow a interpretation format to describe a text-based environment as follows:"}]
+    msg.append({"role": "user", "content": sys_msg_s})
+    if lim == 0:
+        msg.append({"role": "assistant", "content": "Sure, give me the real world map, inventory, I will describe about it to aid in fulfilling the mission"})
+    else:
+        msg.append({"role": "assistant", "content": "Sure, give me the real world map, inventory and experience, I will describe about it to aid in fulfilling the mission"})
+    msg.append({"role": "user", "content": desc_msg_s})
+    write_log(args, save_path, f"Prompt message = \n\n{desc_msg_s}")
+    retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+    while True:
+        try:
+            rsp = openai.ChatCompletion.create(
+                model = gpt_map[args.gpt],
+                messages = msg,
+                temperature = args.temp,
+                max_tokens = lim
+            )
+            desc += rsp["choices"][0]["message"]["content"]
+            break
+        except Exception as e:
+            write_log(args, save_path, f"Caught an error: {e}\n")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # double the delay each time we retry
     write_log(args, save_path, f"\n\n***************** Gained Description *****************\n\n")
     write_log(args, save_path, f"{desc}")
     return desc
@@ -140,9 +136,9 @@ def get_path(args, env_id, lim):
     return full_path
 
 # Function to get re-spawn position (when seed = 23 only)
-def get_pos_m(args):
+def get_pos_m(seed):
     global utilities
-    key_name = "env_pos_" + str(args.seed)
+    key_name = "env_pos_" + str(seed)
     # parse the data and create matrices
     pos_m = {}
     for env in utilities[key_name].strip().split("\n"):
@@ -150,10 +146,10 @@ def get_pos_m(args):
         pos_m[int(env_id)] = (int(x), int(y), arrow)
     return pos_m
 
-def get_rec(args):
+def get_rec(seed):
     global utilities
     # read data from txt file
-
+    key_name = f'env_sizes_{str(seed)}'
     # parse the data and create matrices
     env_view_rec = {}
     env_step_rec = {}
@@ -161,7 +157,7 @@ def get_rec(args):
     obj_intr_rec = {}
     obj_view_rec = {}
 
-    for env in utilities['env_sizes'].strip().split("\n"):
+    for env in utilities[key_name].strip().split("\n"):
         env_id, h, w = map(int, env.strip().split(','))
         env_view_rec[env_id] = np.zeros((h, w))
         env_step_rec[env_id] = np.zeros((h, w))
@@ -171,12 +167,67 @@ def get_rec(args):
 
     return env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec
 
+def get_reason(args, world_map, inv, obs, exp, desc, pos_x, pos_y, arrow, env_id, lim):
+    global save_path
+    global gpt_map
+    global sys_msg_s
+    global utilities
+    write_log(args, save_path, f"\n\n################## Start Deciding ##################\n\n")
+    act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
+                    "3": "forward", "4": "pick up", "5": "drop off"}
+    # Then we need the observation message
+    if lim == 0:
+        reason_msg = utilities['eval_reason_msg_no_e']
+    else:
+        reason_msg = utilities['eval_reason_msg_e']
+    obj_map_s = np.array2string(world_map[env_id][0]).replace("'", "").replace("\"","")
+    col_map_s = np.array2string(world_map[env_id][1]).replace("'", "").replace("\"","")
+    sta_map_s = np.array2string(world_map[env_id][2]).replace("'", "").replace("\"","")
+    obj_idx = {0: "unseen", 1: "empty", 2: "wall", 3: "floor", 4: "door", 5: "key", 6: "ball", 7: "box", 8: "goal", 9: "lava", 10: "agent"}
+    if inv == 0:
+        inv_s = f"You are not holding anything"
+    else:
+        inv_s = f"You are holding a {obj_idx[inv]}"
+    arrow_s = arrow[0].lower() + arrow[1:]
+    if lim == 0:
+        reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, desc, str(lim))
+    else:
+        reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, exp, desc, str(lim))
+
+    msg = [{"role": "system", "content":  "You mission to be an agent that's about to explore a text based world, with environment observation representation provided by user."}]
+    msg.append({"role": "user", "content": sys_msg_s})
+    if lim == 0:
+        msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory and I will decide to make one move or multiple step moves."})
+    else:
+        msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory, experience and I will decide to make one move or multiple step moves."})
+    msg.append({"role": "user", "content": reason_msg_s})
+    write_log(args, save_path, f"Prompt message = \n\n{reason_msg_s}")
+    retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+    while True:
+        try:
+            rsp = openai.ChatCompletion.create(
+                model=gpt_map[args.gpt],
+                messages=msg,
+                temperature = args.temp,
+                max_tokens = args.reason
+            )
+            reason = rsp["choices"][0]["message"]["content"]
+            break
+        except Exception as e:
+            write_log(args, save_path, f"Caught an error: {e}\n")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # double the delay each time we retry
+    write_log(args, save_path, f"\n\n***************** Gained Reason *****************\n\n")
+    write_log(args, save_path, f"{reason}")
+    return reason, reason_msg_s
+
 # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
-def get_world_maps(args):
+def get_world_maps(seed):
     # parse the data and create world maps
+    key_name = f'env_sizes_{str(seed)}'
     world_map = {}
     global utilities
-    for env in utilities['env_sizes'].strip().split("\n"):
+    for env in utilities[key_name].strip().split("\n"):
         env_id, h, w = map(int, env.strip().split(", "))
         world_map[env_id] = np.empty((3, h, w), dtype = object)    
         # the three dimensions will be object, color and status, we intiialize them seperately now 
@@ -578,13 +629,8 @@ if __name__ == '__main__':
             config = vars(args)
         )
 
-    # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
-    pos_m = get_pos_m(args)
-
-    world_map = get_world_maps(args)
-
+    gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
     # Get the two record matrix for all environments, with environment and object level
-    env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(args)
 
     utilities = load_dict_from_json(args.utilities)
 
@@ -600,21 +646,29 @@ if __name__ == '__main__':
         # Complete non experience evaluation first
         env_id = int(env_id)
         env_name = envs_id_mapping[env_id]
-        sys_msg_no_e = utilities['eval_sys_msg_no_e']
-        sys_msg_no_e_s = sys_msg_no_e.format(str(world_map[env_id][0].shape[0]), str(world_map[env_id][0].shape[1]))
         env: MiniGridEnv = gym.make(
             id = env_name,
             render_mode = "rgb_array",
             agent_view_size = args.view,
             screen_size = args.screen
         )
+        write_log(args, save_path, f"Loading environment = {env_name}")
         if env_id == 0:
-            for res in range(args.respawn):
+            for seed in range(20, 25):
+                # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
+                pos_m = get_pos_m(seed)
+                world_map = get_world_maps(seed)
+                env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(seed)
+                sys_msg= utilities['eval_sys_msg_no_e']
+                sys_msg_s = sys_msg.format(str(world_map[env_id][0].shape[0]), str(world_map[env_id][0].shape[1]))
                 inv = 0
+                pos_x, pos_y, arrow = pos_m[env_id]
                 # Initilize the environment
-                obs, state = env.reset(seed=args.seed)
-                eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, act_his, obs, exp, pos_x, pos_y, arrow)
-
+                obs, state = env.reset(seed=seed)
+                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, 0)
+                reason, reason_msg_s = get_reason(args, world_map, inv, obs, exp, eval_desc_msg_no_e_s, pos_x, pos_y, arrow, env_id, 0)
+                
         for lim in range(args.start, args.end + 1, args.gap):
             save_path = get_path(args, env_id, lim)
             if not os.path.exists(save_path):
