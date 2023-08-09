@@ -234,6 +234,8 @@ def execute_action(args, act):
         else:
             if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
                 n_inv = 0
+            else:
+                n_inv = inv
         front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
         write_log(args, save_path, f"The front object being interacted with is {front_obj}")
         obj_intr_rec[env_id][1][front_obj] += 1
@@ -470,7 +472,7 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
             o_goal = ""
             n_goal = ""
         act_his_s = ", ".join(act_his) 
-        refl_msg_s = refl_msg.format(str(env_id), str(o_pos_x), str(o_pos_y), str(o_arrow), str(o_world_map[env_id][0]).replace("'", ""), str(o_world_map[env_id][1]).replace("'", ""), str(o_world_map[env_id][2]).replace("'", ""), o_inv_s, act, o_goal, str(env_id), str(n_pos_x), str(n_pos_y), str(n_arrow), str(n_world_map[env_id][0]).replace("'", ""), str(n_world_map[env_id][1]).replace("'", ""), str(n_world_map[env_id][2]).replace("'", ""), n_inv_s, n_goal, act_his_s, str(max(int(args.lim * (env_id + 1) / len(args.envs)), args.lim // 2)))
+        refl_msg_s = refl_msg.format(str(env_id), str(o_pos_x), str(o_pos_y), str(o_arrow), str(o_world_map[env_id][0]).replace("'", ""), str(o_world_map[env_id][1]).replace("'", ""), str(o_world_map[env_id][2]).replace("'", ""), o_inv_s, act, o_goal, str(env_id), str(n_pos_x), str(n_pos_y), str(n_arrow), str(n_world_map[env_id][0]).replace("'", ""), str(n_world_map[env_id][1]).replace("'", ""), str(n_world_map[env_id][2]).replace("'", ""), n_inv_s, n_goal, act_his_s, str(args.lim))
 
         msg = [{"role": "system", "content": "Your mission is to discover the experience learned from exploring a text based environment, based on previous and after an action observation difference."}]
         msg.append({"role": "user", "content": sys_msg_s})
@@ -484,7 +486,7 @@ def get_exp(args, env_id, n_world_map, o_inv, act, o_obs, n_obs, o_world_map, n_
                     model = gpt_map[args.gpt],
                     messages = msg,
                     temperature = args.temp, 
-                    max_tokens = max(int(args.lim * (env_id + 1) / len(args.envs)), args.lim // 2)
+                    max_tokens = args.lim
                 )
                 n_exp = rsp["choices"][0]["message"]["content"]
                 break
@@ -548,7 +550,7 @@ def get_path(args):
         env_names = "ALL"
     else:
         env_names = "_".join(args.envs)
-    arg_list = ["seed", "gpt", "view", "goal", "static", "temp", "steps", "memo", "lim", "refresh", "desc", "reason"]
+    arg_list = ["seed", "gpt", "view", "goal", "static", "temp", "steps", "memo", "lim", "desc", "reason"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path
@@ -801,7 +803,7 @@ def sum_exp(args, n_exp, o_exp, act_his):
         # Then we need the observation message, which we will fill the act_temp.txt
         act_his_s = ", ".join(act_his)
         sum_msg = utilities['sum_msg']
-        sum_msg_s = sum_msg.format(o_exp, n_exp, act_his_s, str(max(int(args.lim * (env_id + 1) / len(args.envs)), args.lim // 2)))
+        sum_msg_s = sum_msg.format(o_exp, n_exp, act_his_s, str(args.lim))
         msg = [{"role": "system", "content": "You mission is comparing the new and past experience an agent learned from exploring a text-based environment as well as its past actions, analyze and then sum them up to a be more evolved, better experience to guide agent to explore better in the future"}]
         msg.append({"role": "assistant", "content": "Sure, give me your past and new experience, your past actions and I will summarize them for you."})
         write_log(args, save_path, f"Prompt Message = \n\n{sum_msg_s}")
@@ -813,7 +815,7 @@ def sum_exp(args, n_exp, o_exp, act_his):
                     model=gpt_map[args.gpt],
                     messages=msg,
                     temperature = args.temp, 
-                    max_tokens = max(int(args.lim * (env_id + 1) / len(args.envs)), args.lim // 2)
+                    max_tokens = args.lim
                 )
                 c_exp = rsp["choices"][0]["message"]["content"]
                 break

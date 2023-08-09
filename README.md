@@ -53,6 +53,7 @@ python train.py --log --steps 500 --desc 100 --lim 150 --memo 4 --reason 100 --w
 ```
 The command python train.py --log --steps 500 --desc 100 --lim 150 --memo 4 --reason 100 --wandb runs the training script for an agent in a MiniGrid environment using OpenAI's GPT model. The script is configured to print logging information (--log), take a maximum of 500 steps in each environment (--steps 500), set a token limit of 100 for the observation description (--desc 100), set a token limit of 150 for the experience (--lim 150), allow the agent to remember past scenes for up to 4 steps (--memo 4), set a token limit of 100 for the reason behind each choice (--reason 100), and record the experiments using Weights & Biases (--wandb).
 
+<<<<<<< HEAD
 python train.py --log --steps 100 --desc 50 --lim 50 --memo 10 --reason 50 --wandb --envs 1
 python train.py --log --steps 100 --desc 100 --lim 100 --memo 10 --reason 100 --wandb --envs 1
 python train.py --log --steps 100 --desc 150 --lim 150 --memo 10 --reason 150 --wandb --envs 1 
@@ -73,3 +74,9 @@ python train.py --log --steps 100 --desc 850 --lim 850 --memo 10 --reason 850 --
 python train.py --log --steps 100 --desc 900 --lim 900 --memo 10 --reason 900 --wandb --envs 1
 python train.py --log --steps 100 --desc 950 --lim 950 --memo 10 --reason 950 --wandb --envs 1
 python train.py --log --steps 100 --desc 1000 --lim 1000 --memo 10 --reason 1000 --wandb --envs 1
+=======
+### Large Experiment
+```bash
+python process.py --envs 0 --desc-start 50 --desc-end 600
+```
+>>>>>>> 3b004245a59b0b3a32cd4f07d088a322493e3cf9
