@@ -128,6 +128,7 @@ def execute_action(args, act):
             # Initilize the environment
             obs, state = env.reset(seed=args.seed)
             front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
+            write_log(args, save_path, f"\n*************************************************\n\nDoing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
             world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
             # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
             p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)

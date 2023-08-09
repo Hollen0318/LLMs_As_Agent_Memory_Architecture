@@ -10,16 +10,21 @@ from minigrid.core.actions import Actions
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
 from PIL import Image
+import json
 
 # Get the mapping list between 0,1,2,3 and environment names in a list
 def get_env_id_mapping(args):
-    file_name = args.env_id_maps
+    global utilities
     id_mappings = []
-    with open(file_name, "r") as file:
-        for line in file:
-            _, env_name = line.strip().split(", ")
-            id_mappings.append(env_name)
+    for env in utilities['env_id_maps'].strip().split("\n"):
+        _, env_name = env.strip().split(", ")
+        id_mappings.append(env_name)
     return id_mappings
+
+# Load the utilities JSON
+def load_utilities_JSON(args,):
+    with open(args.utilities, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 class ManualControl:
     def __init__(
@@ -132,7 +137,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save",
         type=str,
-        default=r"C:\Users\holle\OneDrive - Duke University\Research\LLM_As_Agent\utilities\env_scn_23",
+        default=r"C:\Users\holle\OneDrive - Duke University\Research\LLM_As_Agent\utilities\env_scn_24",
         help="the save place for the screenshot"
     )
     parser.add_argument(
@@ -166,6 +171,12 @@ if __name__ == "__main__":
         default = 23
     )
     parser.add_argument(
+        "--utilities",
+        type = str,
+        default = r"C:\Users\holle\OneDrive - Duke University\Research\LLM_As_Agent\utilities\utilities.json",
+        help = "the path to load your utilities JSON file storing all texts, environment name, start position etc"
+    )
+    parser.add_argument(
         "--view",
         type = int,
         default = 3,
@@ -178,6 +189,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     
+    # Load the overall utitlies JSON
+    utilities = load_utilities_JSON(args)
+
     if args.wandb:
         wandb.init(
             project = args.prj_name,
@@ -203,18 +217,18 @@ if __name__ == "__main__":
 
         env: MiniGridEnv = gym.make(
             id = env_name,
-            # render_mode = "rgb_array",
-            render_mode = "human",
+            render_mode = "rgb_array",
+            # render_mode = "human",
             agent_view_size = args.view,
             screen_size = args.screen
         )
         # env = RGBImgPartialObsWrapper(env, 32)
-        manual_control = ManualControl(env, seed=args.seed, index = i)
-        manual_control.start()
+        # manual_control = ManualControl(env, seed=args.seed, index = i)
+        # manual_control.start()
         # Initilize the environment
-        # obs, state = env.reset(seed=args.seed)
-        # img_array = env.render()
-        # img = Image.fromarray(img_array)
-        # img.save(os.path.join(args.save, f"env_{i}.png"))
-        # print(f"obs = {str(obs['mission'])}")
-        # env.close()
+        obs, state = env.reset(seed=args.seed)
+        img_array = env.render()
+        img = Image.fromarray(img_array)
+        img.save(os.path.join(args.save, f"env_{i}.png"))
+        print(f"obs = {str(obs['mission'])}")
+        env.close()
