@@ -14,6 +14,88 @@ import json
 import numpy as np
 import re
 
+# Function to return what GPT returns in sring format
+def choose_act(action):
+    return action
+
+def feedback(args, act, pos_x, pos_y, arrow, goal):
+    global save_path
+    write_log(args, save_path, f"Deterimining will act{} success the goal {}")
+
+def get_action(args, reason):
+    global save_path
+    global gpt_map
+    global utilities
+    write_log(args, save_path, f"\n\n################## Start Deciding ##################\n\n")
+    act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
+                    "3": "forward", "4": "pick up", "5": "drop off"}
+    act_msg = utilities['act_msg']
+    act_msg_s = act_msg.format(reason)
+    valid = [i for i in range(6)]
+    msg = [{"role": "system", "content": "You are an expert in analyzing the reason of choices and convert them into action in integer format which will be defined by users by calling the function named \"choose_act\". If the reason of choices inlcude a step by step actions plan, then you give a list of these corresponding integers in right order"}]
+    msg.append({"role": "assistant", "content": "Sure, give me your reason of choices and I will convert it into corresponding integer based on user definition, and if there are more than one steps I will convert it into a integer list"})
+    fuc_msg = utilities['fuc_msg']
+    fuc = [
+        {
+            "name": "choose_act",
+            "description":fuc_msg,
+            "parameters":{
+                "type":"object",
+                "properties":{
+                    "action":
+                    {
+                        "type":"integer",
+                        "description":"the action to take ",
+                    }  
+                },
+                "required":["action"]
+            }
+        }
+    ]
+    msg.append({"role": "user", "content": act_msg_s})
+    write_log(args, save_path, f"Prompt message = \n\n{act_msg_s}")
+
+    retry_delay = args.rty_dly  # wait for 1 second before retrying initially
+    while True:
+        try:
+            rsp = openai.ChatCompletion.create(
+                model=gpt_map[args.gpt],
+                messages=msg,
+                functions = fuc,
+                function_call = "auto",
+                temperature = args.temp
+            )
+            rsp_msg = rsp["choices"][0]["message"]
+            if rsp_msg.get("function_call"):
+                fuc_l = {
+                    "choose_act": choose_act,
+                }
+                fuc_n = rsp_msg["function_call"]["name"]
+                if fuc_n == "choose_act":
+                    fuc_c = fuc_l[fuc_n]
+                    fuc_args = json.loads(rsp_msg["function_call"]["arguments"])
+                    if fuc_args.get("action") in valid:
+                        act = fuc_c(
+                            action = fuc_args.get("action")
+                        )
+                        break
+        except Exception as e:
+            write_log(args, save_path, f"\nCaught an error: {e}\n")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # double the delay each time we retry
+    if isinstance(act, int):
+        write_log(args, save_path, f"\n\n***************** Single Action *****************\n")
+        write_log(args, save_path, f"{act_obj_pair[str(act)]}")
+        return act_obj_pair[str(act)]
+    elif isinstance(act, list):
+        write_log(args, save_path, f"\n\n***************** Multiple Actions *****************\n\n")
+        write_log(args, save_path, f"{act}")
+    else:
+        write_log(args, save_path, "act is neither an integer nor a list.")
+    for i in range(len(act)):
+        act[i] = act_obj_pair[str(act)]
+    return act
+
 # Get the observation representation description, to aid in the decision making
 def get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim):
     desc = f"This is environment #{str(env_id)}\n"
@@ -109,12 +191,12 @@ def get_goals_by_env_and_level(args, data, env_id, level_name):
     global save_path
     for environment in data["environments"]:
         if environment["id"] == env_id:
-            env_name = environment["name"]
+            # env_name = environment["name"]
             for level in environment["level"]:
                 if level["level"] == level_name:
-                    return env_name, level["goals"]
+                    return level["goals"]
     write_log(args, save_path, "goals not found")
-    return None, None
+    return None
 
 # Get the new inventory based on difference between o_obs and n_obs
 def get_n_inv(args, n_obs, o_obs):
@@ -167,7 +249,7 @@ def get_rec(seed):
 
     return env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec
 
-def get_reason(args, world_map, inv, obs, exp, desc, pos_x, pos_y, arrow, env_id, lim):
+def get_reason(args, world_map, inv, exp, desc, pos_x, pos_y, arrow, env_id, lim, goal):
     global save_path
     global gpt_map
     global sys_msg_s
@@ -190,16 +272,16 @@ def get_reason(args, world_map, inv, obs, exp, desc, pos_x, pos_y, arrow, env_id
         inv_s = f"You are holding a {obj_idx[inv]}"
     arrow_s = arrow[0].lower() + arrow[1:]
     if lim == 0:
-        reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, desc, str(lim))
+        reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, desc, goal, str(lim))
     else:
-        reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, exp, desc, str(lim))
+        reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, exp, desc, goal, str(lim))
 
-    msg = [{"role": "system", "content":  "You mission to be an agent that's about to explore a text based world, with environment observation representation provided by user."}]
+    msg = [{"role": "system", "content":  "You mission to be an agent that's about to explore a text based world, with environment observation representation, and the specific goal provided by user."}]
     msg.append({"role": "user", "content": sys_msg_s})
     if lim == 0:
-        msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory and I will decide to make one move or multiple step moves."})
+        msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory and I will decide to make one move or multiple step moves to complete the goal."})
     else:
-        msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory, experience and I will decide to make one move or multiple step moves."})
+        msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory, experience and I will decide to make one move or multiple step moves to complete the goal."})
     msg.append({"role": "user", "content": reason_msg_s})
     write_log(args, save_path, f"Prompt message = \n\n{reason_msg_s}")
     retry_delay = args.rty_dly  # wait for 1 second before retrying initially
@@ -526,16 +608,16 @@ if __name__ == '__main__':
         help = "the path to load your evaluation envs json"
     )
     parser.add_argument(
-        "--goals",
-        type = str,
-        default = "./utilities/goals.json",
-        help = "the path to load the goals json file"
-    )
-    parser.add_argument(
         "--gap",
         type = int, 
         help = "the incremental amount between the experience limit",
         default = 50
+    )
+    parser.add_argument(
+        "--goals",
+        type = str,
+        default = "./utilities/goals.json",
+        help = "the path to load the goals json file"
     )
     parser.add_argument(
         "--gpt",
@@ -564,7 +646,7 @@ if __name__ == '__main__':
         "--prj-name",
         type = str,
         help = "the project name for your wandb",
-        default = "LLM As Agent"
+        default = "LLM As Agent Evaluation"
     )
     parser.add_argument(
         "--respawn",
@@ -619,7 +701,11 @@ if __name__ == '__main__':
         action = "store_true",
         help = "whether to use wandb to record experiments"
     )
-
+    parser.add_argument(
+        "--zero",
+        action = "store_true",
+        help = "whether to include evaluation case with no experience"
+    )
     args = parser.parse_args()
 
     if args.wandb:
@@ -634,6 +720,9 @@ if __name__ == '__main__':
 
     utilities = load_dict_from_json(args.utilities)
 
+    # This is a record dictionary with dimension being: environment ID, experience limit, seed
+    eval_rec =  {}
+
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
 
@@ -642,7 +731,14 @@ if __name__ == '__main__':
 
     goals_dict = load_dict_from_json(args.goals)
 
+    levels = ["very easy", "easy", "medium", "hard", "very hard"]
+
+    goals_dict = load_dict_from_json()
+
     for e in args.envs:
+        eval_rec[e] = {}
+        if e not in eval_envs.keys():
+            continue
         # Complete non experience evaluation first
         env_id = int(e)
         env_name = envs_id_mapping[env_id]
@@ -654,30 +750,76 @@ if __name__ == '__main__':
         )
         write_log(args, save_path, f"Loading environment = {env_name}")
         # Before evaluating those with experience, we want to test situation when there is no experience at all
-        if env_id == 0:
-            for s in args.seeds:
-                goals_dict = 
-                seed = int(s)
-                # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
-                pos_m = get_pos_m(seed)
-                world_map = get_world_maps(seed)
-                env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(seed)
-                sys_msg = utilities['eval_sys_msg_no_e']
-                sys_msg_s = sys_msg.format(str(world_map[env_id][0].shape[0]), str(world_map[env_id][0].shape[1]))
-                inv = 0
-                pos_x, pos_y, arrow = pos_m[env_id]
-                # Initilize the environment
-                obs, state = env.reset(seed=seed)
-                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-                eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, 0)
-
-                reason, reason_msg_s = get_reason(args, world_map, inv, obs, exp, eval_desc_msg_no_e_s, pos_x, pos_y, arrow, env_id, 0)
-                
+        if args.zero:
+            eval_rec[e]["0"] = {}
+            if env_id == 0:
+                for s in args.seeds:
+                    eval_rec[e]["0"][str(s)] = {}
+                    for level_id in range(len(levels)):
+                        eval_rec[e]["0"][str(s)][str(level_id)] = {}
+                        goal_idx = 0
+                        for goal in goals_dict["environments"][env_id]["levels"][level_id]["goals"]:
+                            eval_rec[e]["0"][str(s)][str(level_id)][str(goal_idx)] = 0
+                            save_path = get_path(args, env_id, 0)
+                            if not os.path.exists(save_path):
+                                os.makedirs(save_path)
+                            write_log(args, save_path, f"################## Starting Evaluation ##################\n")
+                            write_log(args, save_path, f"Configurations are:\n{args}\n")
+                            write_log(args, save_path, f"\nEvaluating Goal f{goal} on Environment # {env_id} Experience Limit 0\n")
+                            seed = int(s)
+                            # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
+                            pos_m = get_pos_m(seed)
+                            world_map = get_world_maps(seed)
+                            env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(seed)
+                            sys_msg = utilities['eval_sys_msg_no_e']
+                            sys_msg_s = sys_msg.format(goal, str(world_map[env_id][0].shape[0]), str(world_map[env_id][0].shape[1]))
+                            inv = 0
+                            pos_x, pos_y, arrow = pos_m[env_id]
+                            # Initilize the environment
+                            obs, state = env.reset(seed=seed)
+                            p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                            eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, 0)
+                            reason, reason_msg_s = get_reason(args, world_map, inv, exp, eval_desc_msg_no_e_s, pos_x, pos_y, arrow, env_id, 0, goal)
+                            act = get_action(args, reason)
+                            # eval_rec[e]["0"][str(s)][str(level_id)][str(goal_idx)] = eval_feed(args, act, pos_x, pos_y, arrow, goal, env_id, level_id, goal_idx)
+                            # goal_idx += 1
+                            write_log(args, save_path, f"the actions chosen are {act} with goal {goal} in env {e} lim {0}")
+            else:
+                pass
         for lim in range(args.start, args.end + 1, args.gap):
+            if args.gap != int(eval_envs[e][2]):
+                write_log("the evaluation gap is different from the trained pre-set gap")
+            elif lim < int(eval_envs[e][0]):
+                continue
+            elif lim > int(eval_envs[e][1]):
+                break
             save_path = get_path(args, env_id, lim)
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             exp = locate_exp(args, env_id, lim, args.gpt, args.memo, args.view, args.temp)
             if env_id == 0:
-                for res in range(args.respawn):
-                    pass
+                for s in args.seeds:
+                    for level_id in range(len(levels)):
+                        for goal in goals_dict["environments"][env_id]["levels"][level_id]["goals"]:
+                            save_path = get_path(args, env_id, lim)
+                            if not os.path.exists(save_path):
+                            os.makedirs(save_path)
+                            write_log(args, save_path, f"################## Starting Evaluation ##################\n")
+                            write_log(args, save_path, f"Configurations are:\n{args}\n")
+                            write_log(args, save_path, f"\nEvaluating Goal f{goal} on Environment # {env_id} Experience Limit {lim}\n")
+                            seed = int(s)
+                            # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
+                            pos_m = get_pos_m(seed)
+                            world_map = get_world_maps(seed)
+                            env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(seed)
+                            sys_msg = utilities['eval_sys_msg_e']
+                            sys_msg_s = sys_msg.format(goal, str(world_map[env_id][0].shape[0]), str(world_map[env_id][0].shape[1]))
+                            inv = 0
+                            pos_x, pos_y, arrow = pos_m[env_id]
+                            # Initilize the environment
+                            obs, state = env.reset(seed=seed)
+                            p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
+                            eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim)
+                            reason, reason_msg_s = get_reason(args, world_map, inv, exp, eval_desc_msg_no_e_s, pos_x, pos_y, arrow, env_id, 0, lim)
+            else:
+                pass

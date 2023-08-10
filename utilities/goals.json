@@ -3,7 +3,7 @@
         {
             "id": 0,
             "name": "MiniGrid-BlockedUnlockPickup-v0",
-            "level": [
+            "levels": [
                 {
                     "level": "very easy",
                     "goals": ["Step forward and turn right", 
