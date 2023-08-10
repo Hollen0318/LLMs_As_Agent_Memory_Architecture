@@ -33,13 +33,13 @@ def get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim):
         inv_s = f"You are not holding anything"
     else:
         inv_s = f"You are holding a {obj_idx[inv]}"
+    arrow_s = arrow[0].lower() + arrow[1:]
     if lim == 0:
         desc_msg = utilities['eval_desc_msg_no_e']
         desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, str(lim))
     else:
         desc_msg = utilities['eval_desc_msg_e']
         desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, exp, str(lim))
-    arrow_s = arrow[0].lower() + arrow[1:]
     msg = [{"role": "system", "content": "Your mission is to understand deeply and follow a interpretation format to describe a text-based environment as follows:"}]
     msg.append({"role": "user", "content": sys_msg_s})
     if lim == 0:
@@ -579,10 +579,10 @@ if __name__ == '__main__':
         help = "the number of seconds to delay when in OpenAI API Calling"
     )
     parser.add_argument(
-        "--seed",
-        type = int,
-        help = "random seed for reproducing results",
-        default = 23
+        "--envs",
+        nargs = "+",
+        help = "list of seed numbers like 21, 22, 23(default)",
+        default = ["23"]
     )
     parser.add_argument(
         "--start",
@@ -642,9 +642,9 @@ if __name__ == '__main__':
 
     goals_dict = load_dict_from_json(args.goals)
 
-    for env_id in args.envs:
+    for e in args.envs:
         # Complete non experience evaluation first
-        env_id = int(env_id)
+        env_id = int(e)
         env_name = envs_id_mapping[env_id]
         env: MiniGridEnv = gym.make(
             id = env_name,
@@ -653,13 +653,16 @@ if __name__ == '__main__':
             screen_size = args.screen
         )
         write_log(args, save_path, f"Loading environment = {env_name}")
+        # Before evaluating those with experience, we want to test situation when there is no experience at all
         if env_id == 0:
-            for seed in range(20, 25):
+            for s in args.seeds:
+                goals_dict = 
+                seed = int(s)
                 # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
                 pos_m = get_pos_m(seed)
                 world_map = get_world_maps(seed)
                 env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(seed)
-                sys_msg= utilities['eval_sys_msg_no_e']
+                sys_msg = utilities['eval_sys_msg_no_e']
                 sys_msg_s = sys_msg.format(str(world_map[env_id][0].shape[0]), str(world_map[env_id][0].shape[1]))
                 inv = 0
                 pos_x, pos_y, arrow = pos_m[env_id]
@@ -667,6 +670,7 @@ if __name__ == '__main__':
                 obs, state = env.reset(seed=seed)
                 p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, 0)
+
                 reason, reason_msg_s = get_reason(args, world_map, inv, obs, exp, eval_desc_msg_no_e_s, pos_x, pos_y, arrow, env_id, 0)
                 
         for lim in range(args.start, args.end + 1, args.gap):
@@ -676,4 +680,4 @@ if __name__ == '__main__':
             exp = locate_exp(args, env_id, lim, args.gpt, args.memo, args.view, args.temp)
             if env_id == 0:
                 for res in range(args.respawn):
-                
+                    pass
