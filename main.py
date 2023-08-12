@@ -13,6 +13,7 @@ from PIL import Image
 import json
 import numpy as np
 import re
+from classes.agent import agent
 
 # Function to return what GPT returns in sring format
 def choose_act(action):
@@ -537,26 +538,6 @@ def get_n_inv(args, n_obs, o_obs):
     return o_obs_img_obj[indices[0][0]][indices[1][0]]
 
 
-# Get the saving path for the current argument setting
-def get_path(args):
-    # Test if the model is getting directions from input
-    if args.input:
-        dir_n = "INPUT"
-    else:
-        dir_n = "GPT"
-
-    timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
-    if args.all:
-        env_names = "ALL"
-    else:
-        env_names = "_".join(args.envs)
-    arg_list = ["seed", "gpt", "view", "goal", "static", "temp", "steps", "memo", "lim", "desc", "reason"]
-    # Create a folder name from the argument parser args
-    folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
-    # Combine them to create the full path
-    full_path = os.path.join(dir_n, env_names, folder_name, str(timestamp))
-    
-    return full_path
 
 # Function to get re-spawn position (when seed = 23 only)
 def get_pos_m(args):
@@ -1021,14 +1002,6 @@ def update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, a
     write_log(args, save_path, f"\nthe arrow is {arrow}, pos_x, pos_y, {str(pos_x)} {str(pos_y)}\n")
     return p_obj, p_col, p_sta
 
-# Function to write the logging infos in to log save file
-def write_log(args, save_path, text):
-    if args.log:
-        print(text)
-    # Open the file in append mode
-    with open(os.path.join(save_path, f"log.txt"), "a", encoding='utf-8') as file:
-        # Write the strings to the file
-        file.write(text)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -1046,7 +1019,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--cross",
         action = "store_true",
-        help = "whether will agent bring experience from the past environment"
+        help = "whether will agent bring experience from the past environment or they will refresh their experiences once enter new environment during training"
     )
     parser.add_argument(
         "--desc",
@@ -1058,7 +1031,8 @@ if __name__ == '__main__':
         "--envs",
         nargs = "+",
         help = "list of environment names, see the ./utilities/envs_mapping.txt for mapping between index and env",
-        default = ["0"]
+        default = [0],
+        type = int
     )
     parser.add_argument(
         "--exp-src",
@@ -1068,14 +1042,14 @@ if __name__ == '__main__':
     parser.add_argument(
         "--goal",
         action = "store_true",
-        help = "whether include the text goal into the observation description"
+        help = "whether include the text goal into the observation description when agent is training"
     )
     parser.add_argument(
         "--gpt",
         type = str,
-        choices = ["3", "4"],
-        help = "the version of gpt, type version number like 3 or 4",
-        default = "3"
+        choices = ["0", "1", "2", "3", "4", "5", "6", "7"],
+        help = r'the version of gpt, type version number like 3 or 4, the correspondance relationship is gpt_map = {"0": "gpt-3.5-turbo", "1": "gpt-3.5-turbo-0301", "2": "gpt-3.5-turbo-0613", "3": "gpt-3.5-turbo-16k", "4": "gpt-3.5-turbo-16k-0613", "5": "gpt-4", "6": "gpt-4-0314", "7": "gpt-4-0613"}',
+        default = "0"
     )
     parser.add_argument(
         "--input",
@@ -1131,9 +1105,10 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--steps",
-        type = int,
-        default = 2000,
-        help = "the maximum numbers of steps each environment will be taken"
+        nargs = "+",
+        help = "list of steps taken in the args.env, it should have the same length as the environment",
+        default = [100],
+        type = int
     )
     parser.add_argument(
         "--temp",
@@ -1159,18 +1134,8 @@ if __name__ == '__main__':
         help = "whether to use wandb to record experiments"
     )
     args = parser.parse_args()
-    save_path = get_path(args)
 
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-
-    # Start running the specified environment(s), for each one, it has limited steps, whether it uses an existing
-    # experience or an evolving experience will be dependent on the arguments. 
-    write_log(args, save_path, f"################## Starting Experiment ##################\n")
-    write_log(args, save_path, f"Configurations are:\n{args}\n")
-
-    # The mapping for the GPT
-    gpt_map = {"3":"gpt-3.5-turbo", "4":"gpt-4"}
+    llm_agent = agent(args)
 
     # Load the experience if it's given, and determine the training process based on --static
     if args.exp_src is not None:

@@ -18,9 +18,9 @@ import re
 def choose_act(action):
     return action
 
-def feedback(args, act, pos_x, pos_y, arrow, goal):
-    global save_path
-    write_log(args, save_path, f"Deterimining will act{} success the goal {}")
+# def feedback(args, act, pos_x, pos_y, arrow, goal):
+#     global save_path
+#     write_log(args, save_path, f"Deterimining will act {} success the goal {}")
 
 def get_action(args, reason):
     global save_path
@@ -97,7 +97,7 @@ def get_action(args, reason):
     return act
 
 # Get the observation representation description, to aid in the decision making
-def get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim):
+def get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim, zero: bool):
     desc = f"This is environment #{str(env_id)}\n"
     global save_path
     global gpt_map
@@ -116,7 +116,7 @@ def get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim):
     else:
         inv_s = f"You are holding a {obj_idx[inv]}"
     arrow_s = arrow[0].lower() + arrow[1:]
-    if lim == 0:
+    if zero:
         desc_msg = utilities['eval_desc_msg_no_e']
         desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, str(lim))
     else:
@@ -124,7 +124,7 @@ def get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, lim):
         desc_msg_s = desc_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, exp, str(lim))
     msg = [{"role": "system", "content": "Your mission is to understand deeply and follow a interpretation format to describe a text-based environment as follows:"}]
     msg.append({"role": "user", "content": sys_msg_s})
-    if lim == 0:
+    if zero:
         msg.append({"role": "assistant", "content": "Sure, give me the real world map, inventory, I will describe about it to aid in fulfilling the mission"})
     else:
         msg.append({"role": "assistant", "content": "Sure, give me the real world map, inventory and experience, I will describe about it to aid in fulfilling the mission"})
@@ -209,7 +209,7 @@ def get_n_inv(args, n_obs, o_obs):
 def get_path(args, env_id, lim):
     dir_n = "EVAL"
     timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
-    arg_list = ["seed", "gpt", "memo", "temp", "view"]
+    arg_list = ["seeds", "gpt", "memo", "temp", "view"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path
@@ -249,7 +249,7 @@ def get_rec(seed):
 
     return env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec
 
-def get_reason(args, world_map, inv, exp, desc, pos_x, pos_y, arrow, env_id, lim, goal):
+def get_reason(args, world_map, inv, exp, desc, pos_x, pos_y, arrow, env_id, lim, goal, zero: bool):
     global save_path
     global gpt_map
     global sys_msg_s
@@ -258,7 +258,7 @@ def get_reason(args, world_map, inv, exp, desc, pos_x, pos_y, arrow, env_id, lim
     act_obj_pair = {"0": "left", "1": "right", "2": "toggle",
                     "3": "forward", "4": "pick up", "5": "drop off"}
     # Then we need the observation message
-    if lim == 0:
+    if zero:
         reason_msg = utilities['eval_reason_msg_no_e']
     else:
         reason_msg = utilities['eval_reason_msg_e']
@@ -271,14 +271,14 @@ def get_reason(args, world_map, inv, exp, desc, pos_x, pos_y, arrow, env_id, lim
     else:
         inv_s = f"You are holding a {obj_idx[inv]}"
     arrow_s = arrow[0].lower() + arrow[1:]
-    if lim == 0:
+    if zero:
         reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, desc, goal, str(lim))
     else:
         reason_msg_s = reason_msg.format(str(env_id), pos_x, pos_y, arrow_s, obj_map_s, col_map_s, sta_map_s, inv_s, exp, desc, goal, str(lim))
 
     msg = [{"role": "system", "content":  "You mission to be an agent that's about to explore a text based world, with environment observation representation, and the specific goal provided by user."}]
     msg.append({"role": "user", "content": sys_msg_s})
-    if lim == 0:
+    if zero:
         msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory and I will decide to make one move or multiple step moves to complete the goal."})
     else:
         msg.append({"role": "assistant", "content": "Sure, give me the real observation in world map, inventory, experience and I will decide to make one move or multiple step moves to complete the goal."})
@@ -291,7 +291,7 @@ def get_reason(args, world_map, inv, exp, desc, pos_x, pos_y, arrow, env_id, lim
                 model=gpt_map[args.gpt],
                 messages=msg,
                 temperature = args.temp,
-                max_tokens = args.reason
+                max_tokens = lim
             )
             reason = rsp["choices"][0]["message"]["content"]
             break
@@ -602,9 +602,9 @@ if __name__ == '__main__':
         default = ["0"]
     )
     parser.add_argument(
-        "--eval",
+        "--eval-envs",
         type = str,
-        default = "./utlitilies/eval_envs.json",
+        default = "./utilities/eval_envs.json",
         help = "the path to load your evaluation envs json"
     )
     parser.add_argument(
@@ -625,11 +625,6 @@ if __name__ == '__main__':
         choices = ["3", "4"],
         help = "the version of gpt, type version number like 3 or 4",
         default = "3"
-    )
-    parser.add_argument(
-        "--level",
-        type = str,
-        chocies = ["very easy", "easy", "medium", "hard", "very hard"]
     )
     parser.add_argument(
         "--log",
@@ -661,7 +656,13 @@ if __name__ == '__main__':
         help = "the number of seconds to delay when in OpenAI API Calling"
     )
     parser.add_argument(
-        "--envs",
+        "--screen",
+        default = 640, 
+        type = int,
+        help = "the render resolution for screenshot"
+    )
+    parser.add_argument(
+        "--seeds",
         nargs = "+",
         help = "list of seed numbers like 21, 22, 23(default)",
         default = ["23"]
@@ -726,14 +727,15 @@ if __name__ == '__main__':
     # The environment ID and enviornment name mapping list
     envs_id_mapping = get_env_id_mapping(args)
 
+    # Load the API key
+    openai.api_key = open(args.API_key).read()
+
     # Dictionary of environment being evaluated
-    eval_envs = load_dict_from_json(args.utilities)
+    eval_envs = load_dict_from_json(args.eval_envs)
 
     goals_dict = load_dict_from_json(args.goals)
 
     levels = ["very easy", "easy", "medium", "hard", "very hard"]
-
-    goals_dict = load_dict_from_json()
 
     for e in args.envs:
         eval_rec[e] = {}
@@ -748,7 +750,6 @@ if __name__ == '__main__':
             agent_view_size = args.view,
             screen_size = args.screen
         )
-        write_log(args, save_path, f"Loading environment = {env_name}")
         # Before evaluating those with experience, we want to test situation when there is no experience at all
         if args.zero:
             eval_rec[e]["0"] = {}
@@ -759,13 +760,15 @@ if __name__ == '__main__':
                         eval_rec[e]["0"][str(s)][str(level_id)] = {}
                         goal_idx = 0
                         for goal in goals_dict["environments"][env_id]["levels"][level_id]["goals"]:
+                            lim = 150
                             eval_rec[e]["0"][str(s)][str(level_id)][str(goal_idx)] = 0
-                            save_path = get_path(args, env_id, 0)
+                            save_path = get_path(args, e, 0)
                             if not os.path.exists(save_path):
                                 os.makedirs(save_path)
+                            write_log(args, save_path, f"Loading environment = {env_name}")
                             write_log(args, save_path, f"################## Starting Evaluation ##################\n")
                             write_log(args, save_path, f"Configurations are:\n{args}\n")
-                            write_log(args, save_path, f"\nEvaluating Goal f{goal} on Environment # {env_id} Experience Limit 0\n")
+                            write_log(args, save_path, f"################## Evaluating Goal: ##################\n\n{goal}\n\nEnvironment # {env_id} experience Limit 0\n")
                             seed = int(s)
                             # Get the position mapping for all environments, which include the x, y (in integer) and the direction Right string
                             pos_m = get_pos_m(seed)
@@ -778,14 +781,13 @@ if __name__ == '__main__':
                             # Initilize the environment
                             obs, state = env.reset(seed=seed)
                             p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-                            eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, exp, pos_x, pos_y, arrow, 0)
-                            reason, reason_msg_s = get_reason(args, world_map, inv, exp, eval_desc_msg_no_e_s, pos_x, pos_y, arrow, env_id, 0, goal)
+                            eval_desc_msg_no_e_s = get_desc(args, env_id, world_map, inv, "", pos_x, pos_y, arrow, lim, True)
+                            reason, reason_msg_s = get_reason(args, world_map, inv, "", eval_desc_msg_no_e_s, pos_x, pos_y, arrow, env_id, lim, goal, True)
                             act = get_action(args, reason)
                             # eval_rec[e]["0"][str(s)][str(level_id)][str(goal_idx)] = eval_feed(args, act, pos_x, pos_y, arrow, goal, env_id, level_id, goal_idx)
                             # goal_idx += 1
                             write_log(args, save_path, f"the actions chosen are {act} with goal {goal} in env {e} lim {0}")
-            else:
-                pass
+
         for lim in range(args.start, args.end + 1, args.gap):
             if args.gap != int(eval_envs[e][2]):
                 write_log("the evaluation gap is different from the trained pre-set gap")
@@ -803,7 +805,7 @@ if __name__ == '__main__':
                         for goal in goals_dict["environments"][env_id]["levels"][level_id]["goals"]:
                             save_path = get_path(args, env_id, lim)
                             if not os.path.exists(save_path):
-                            os.makedirs(save_path)
+                                os.makedirs(save_path)
                             write_log(args, save_path, f"################## Starting Evaluation ##################\n")
                             write_log(args, save_path, f"Configurations are:\n{args}\n")
                             write_log(args, save_path, f"\nEvaluating Goal f{goal} on Environment # {env_id} Experience Limit {lim}\n")
