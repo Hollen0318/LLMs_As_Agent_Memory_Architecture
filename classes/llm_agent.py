@@ -1,6 +1,9 @@
-from utils.log import *
-from utils.load_data import *
-from utils.api import load_api
+import wandb
+from utils.log import get_path, write_log
+from utils.load_data import gpt_map, env_ids, data, goals, train_rec
+import utils.api.load_api
+from utils.track import get_world_maps
+from datetime import datetime
 
 # This is LLM enabled agent class
 class agent:
@@ -9,7 +12,6 @@ class agent:
         self.args = args
         self.save_path = get_path(args)
         self.gpt = gpt_map[args.gpt]
-        
         # Initiate the starting experience
         if args.exp_src is not None:
             self.exp = open(args.exp_src).read()
@@ -33,3 +35,7 @@ class agent:
         # Getting the environment list
         if self.args.all:
             self.envs = [str(i) for i in range()]
+
+        # For each seed, we will have new world map
+        self.world_map = get_world_maps(env_id, data["env_sizes_" + str(self.args.seed)])
+        self.rec = get_rec                                                                

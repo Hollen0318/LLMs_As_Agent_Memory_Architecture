@@ -2,8 +2,8 @@
 import pandas as pd
 import openai
 import gymnasium as gym
-from Minigrid.minigrid.core.actions import Actions
-from Minigrid.minigrid.minigrid_env import MiniGridEnv
+from classes.Minigrid.minigrid.core.actions import Actions
+from classes.Minigrid.minigrid.minigrid_env import MiniGridEnv
 import os
 from datetime import datetime
 import argparse
@@ -13,7 +13,7 @@ from PIL import Image
 import json
 import numpy as np
 import re
-from classes.agent import agent
+from classes.llm_agent import agent
 
 # Function to return what GPT returns in sring format
 def choose_act(action):
@@ -1098,10 +1098,11 @@ if __name__ == '__main__':
         help = "set the resolution for pygame rendering (width and height)",
     )
     parser.add_argument(
-        "--seed",
-        type = int,
-        help = "random seed for reproducing results",
-        default = 23
+        "--seeds",
+        nargs = "+",
+        help = "list of random seeds for reproducing results",
+        default = [23],
+        type = int
     )
     parser.add_argument(
         "--steps",
@@ -1110,6 +1111,7 @@ if __name__ == '__main__':
         default = [100],
         type = int
     )
+    
     parser.add_argument(
         "--temp",
         type = float,
@@ -1136,33 +1138,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     llm_agent = agent(args)
-
-    # Load the experience if it's given, and determine the training process based on --static
-    if args.exp_src is not None:
-        exp = open(args.exp_src).read()
-    else:
-    # Initial Experience
-        exp = ""
-
-    # Load the API key
-    openai.api_key = open(args.API_key).read()
-
-    if args.wandb:
-        wandb.init(
-            project = args.prj_name,
-            name = datetime.now().strftime(r"Run %Y-%m-%d %H:%M:%S"),
-            config = vars(args)
-        )
-    
-    # get the environment list based on --all or --envs, if --all then replace args.envs as all environments
-    if args.all:
-        args.envs = [str(i) for i in range(58)]
-    
-    # Load the overall utitlies JSON
-    utilities = load_utilities_JSON(args)
-
-    # Get the observation map for all environments, with 3-dimension (object, color, status) and height, width.
-    world_map = get_world_maps(args)
     
     # Get the two record matrix for all environments, with environment and object level
     env_view_rec, env_step_rec, env_memo_rec, obj_intr_rec, obj_view_rec = get_rec(args)

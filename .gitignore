@@ -4,7 +4,6 @@ utils/api/API_KEY_YCQ
 utils/convert_to_json.py
 utils/create_json.py
 utils/get_envs_mapping.py
-utils/load_data.py
 data/input/Pipeline.txt
 data/output/EVAL
 data/output/INPUT
