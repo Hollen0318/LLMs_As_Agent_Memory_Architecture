@@ -14,7 +14,7 @@ import json
 import numpy as np
 import re
 from classes.llm_agent import agent
-
+from utils.alert import steps_envs_same_length, examine_args
 # Function to return what GPT returns in sring format
 def choose_act(action):
     return action
@@ -1035,6 +1035,11 @@ if __name__ == '__main__':
         type = int
     )
     parser.add_argument(
+        "--eval",
+        action = "store_true",
+        help = "evaluation mode boolean, otherwise it is train mode"
+    )
+    parser.add_argument(
         "--exp-src",
         type = str,
         help = "the starting experience read path"
@@ -1111,18 +1116,11 @@ if __name__ == '__main__':
         default = [100],
         type = int
     )
-    
     parser.add_argument(
         "--temp",
         type = float,
         default = 0.7,
         help = "the temprature used by the OpenAI API"
-    )
-    parser.add_argument(
-        "--utilities",
-        type = str,
-        default = "utilities/utilities.json",
-        help = "the path to load your utilities JSON file storing all texts, environment name, start position etc"
     )
     parser.add_argument(
         "--view",
@@ -1136,7 +1134,9 @@ if __name__ == '__main__':
         help = "whether to use wandb to record experiments"
     )
     args = parser.parse_args()
+    examine_args(args)
 
+    # Create the agent
     llm_agent = agent(args)
     
     # Get the two record matrix for all environments, with environment and object level

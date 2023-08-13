@@ -2,23 +2,36 @@ import os
 from datetime import datetime
 
 # Get the saving path for the current argument setting
-def get_path(args):
+def get_path(args, seed, steps, env_id):
+    # The experiment should be classified first in seed, 
+    # then mode (Train and Evaluation), then depends on GPT or INPUT,
+    # then environment id, depends on its cross property,
+    # we create single folder for each environment or together
+    # then inside we use parameter setting as folder name
+    # then we use the datetime
+    seed_dir = "seed_" + str(seed)
+    if args.eval:
+        mode_dir = "eval"
+    else:
+        mode_dir = "train"
     # Test if the agent is controlled by input (human) or from LLMs
     if args.input:
-        dir_n = "INPUT"
+        output_dir = "INPUT"
     else:
-        dir_n = "GPT"
+        output_dir = "GPT"
+    if args.cross:
+        if args.all:
+            env_dir = "ALL"
+        else:
+            env_dir = "_".join(args.envs)
+        steps_s = "_".join(args.steps)
+        env_dir = "cross " + env_dir + f" steps {steps_s}"
+    else:
+        env_dir = str(env_id) + f" steps {steps}"
     # For same settings, there may be multiple experiment so it's important to distinguish time
     timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
-
-    # If the exprinment includes all the environments, then we use 'ALL"
-    if args.all:
-        env_names = "ALL"
-    else:
-        env_names = "_".join(args.envs)
-
     # These are the parmaters may change in the experiment, they are for us to distinguish them
-    arg_list = ["seed", "gpt", "view", "goal", "temp", "steps", "memo", "lim", "desc", "reason"]
+    arg_list = ["gpt", "view", "temp", "memo", "lim", "desc", "reason"]
 
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
