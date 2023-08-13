@@ -1,5 +1,0 @@
-{
-    "memo": 10,
-    "_comment_memory": "this variable is the maximum number of actions spaces an agent can remember, with this being set as 5 for example, when an agent see a space, that space will be set as 5 and while all others will be deducted by 1",
-    "desc": 
-}

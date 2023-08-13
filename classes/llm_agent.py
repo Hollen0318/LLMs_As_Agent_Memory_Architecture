@@ -4,20 +4,16 @@ from utils.load_data import *
 import utils.api.load_api
 from utils.skip import skip
 from utils.track import get_track
+from utils.alert import examine
 from datetime import datetime
 
 # This is LLM enabled agent class
 class agent:
 
     def __init__(self, args):
-        self.args = args
-        self.gpt = gpt_map[args.gpt]
+        self.args = examine(args)
         # Initiate the starting experience
-        if args.exp_src is not None:
-            self.exp = open(args.exp_src).read()
-        else:
-            self.exp = ""
-
+        
     def log(self, texts):
         write_log(self.args, self.save_path, texts)
 
@@ -45,5 +41,6 @@ class agent:
                 self.log(f"Configurations are:\n{self.args}\n")
 
                 self.world_map, self.rec = get_track(env_id, env_sizes[str(seed)])
-                if not skip(env_id):
-                    
+                if skip(env_id):
+                   continue
+                self.sys_msg = train_msg['sys_msg']

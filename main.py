@@ -14,7 +14,7 @@ import json
 import numpy as np
 import re
 from classes.llm_agent import agent
-from utils.alert import steps_envs_same_length, examine_args
+
 # Function to return what GPT returns in sring format
 def choose_act(action):
     return action
@@ -1017,6 +1017,12 @@ if __name__ == '__main__':
         help = "the location to load your OpenAI API Key"
     )
     parser.add_argument(
+        "--c-exp",
+        type = int,
+        default = 100,
+        help = "c_exp is the maximum tokens limit for the generation of summarized experience"
+    )
+    parser.add_argument(
         "--cross",
         action = "store_true",
         help = "whether will agent bring experience from the past environment or they will refresh their experiences once enter new environment during training"
@@ -1024,8 +1030,8 @@ if __name__ == '__main__':
     parser.add_argument(
         "--desc",
         type = int,
-        default = 50, 
-        help = "the token limits for observation description"
+        default = 100, 
+        help = "desc is the maximum tokens limit for the description of an environment observation representation"
     )
     parser.add_argument(
         "--envs",
@@ -1045,27 +1051,17 @@ if __name__ == '__main__':
         help = "the starting experience read path"
     )
     parser.add_argument(
-        "--goal",
-        action = "store_true",
-        help = "whether include the text goal into the observation description when agent is training"
-    )
-    parser.add_argument(
         "--gpt",
         type = str,
+        nargs = "+",
         choices = ["0", "1", "2", "3", "4", "5", "6", "7"],
-        help = r'the version of gpt, type version number like 3 or 4, the correspondance relationship is gpt_map = {"0": "gpt-3.5-turbo", "1": "gpt-3.5-turbo-0301", "2": "gpt-3.5-turbo-0613", "3": "gpt-3.5-turbo-16k", "4": "gpt-3.5-turbo-16k-0613", "5": "gpt-4", "6": "gpt-4-0314", "7": "gpt-4-0613"}',
-        default = "0"
+        help = r'the version of gpt, type version number like 3 or 4, the correspondance relationship is gpt_map = {"0": "gpt-3.5-turbo", "1": "gpt-3.5-turbo-0301", "2": "gpt-3.5-turbo-0613", "3": "gpt-3.5-turbo-16k", "4": "gpt-3.5-turbo-16k-0613", "5": "gpt-4", "6": "gpt-4-0314", "7": "gpt-4-0613"} it should be the same length as env if we want to have different gpt for different envs',
+        default = ["0"]
     )
     parser.add_argument(
         "--input",
         action = "store_true",
         help = "if the action and experience will be given by user instead of generating from GPT"
-    )
-    parser.add_argument(
-        "--lim",
-        type = int,
-        default = 50,
-        help = "the tokens limit to the experience"
     )
     parser.add_argument(
         "--log",
@@ -1075,8 +1071,14 @@ if __name__ == '__main__':
     parser.add_argument(
         "--memo",
         type = int,
-        help = "how long can agent remember past scenes",
-        default = 5
+        help = "memo is the maximum number of actions spaces an agent can remember, with this being set as 5 for example, when an agent see a space, that space will be set as 5 and while all others will be deducted by 1",
+        default = 10
+    )
+    parser.add_argument(
+        "--n-exp",
+        type = int,
+        default = 50,
+        help = "n_exp is the maximum tokens limit for the generation of new experience"
     )
     parser.add_argument(
         "--prj-name",
@@ -1087,8 +1089,8 @@ if __name__ == '__main__':
     parser.add_argument(
         "--reason",
         type = int,
-        default = 50, 
-        help = "the token limits for reason of choice"
+        default = 100, 
+        help = "reason is the maximum tokens limit for the reasons of choices"
     )
     parser.add_argument(
         "--rty-dly",
@@ -1134,7 +1136,6 @@ if __name__ == '__main__':
         help = "whether to use wandb to record experiments"
     )
     args = parser.parse_args()
-    examine_args(args)
 
     # Create the agent
     llm_agent = agent(args)

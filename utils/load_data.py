@@ -13,22 +13,22 @@ def get_pos_m(env_pos):
         pos_m[env_id] = (int(x), int(y), arrow)
     return pos_m
     
-gpt_map = load_json(r"data/input/gpt_map.json")
+gpt_map = load_json(r"data/input/gpt/gpt_map.json")
 
-env_ids = load_json(r"data/input/env_ids.json")
+env_ids = load_json(r"data/input/env/env_ids.json")
 
-env_pos = load_json(r"data/input/env_pos.json")
+env_pos = load_json(r"data/input/env/env_pos.json")
 
-env_sizes = load_json(r"data/input/env_sizes.json")
+env_sizes = load_json(r"data/input/env/env_sizes.json")
 
-goals = load_json(r"data/input/goals.json")
+goals = load_json(r"data/input/goals/goals.json")
 
-minigrid_mission = load_json(r"data/input/minigrid_mission.json")
+minigrid_mission = load_json(r"data/input/goals/minigrid_mission.json")
 
-train_msg = load_json(r"data/input/train_msg.json")
+train_msg = load_json(r"data/input/msg/train_msg.json")
 
-train_rec = load_json(r"data/input/train_rec.json")
+train_rec = load_json(r"data/input/msg/train_rec.json")
 
-eval_msg = load_json(r"data/input/eval_msg.json")
+eval_msg = load_json(r"data/input/rec/eval_msg.json")
 
-eval_rec = load_json(r"data/input/eval_rec.json")
+eval_rec = load_json(r"data/input/rec/eval_rec.json")

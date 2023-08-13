@@ -22,6 +22,7 @@ def get_track(id, env_sizes):
             obj_intr["drop off"] = np.array([0 for i in range(11)])
             obj_intr["pick up"] = np.array([0 for i in range(11)])
             obj_view = np.array([0 for i in range(11)])
+            
             break
 
     rec["env_view"], rec["env_step"], rec["env_memo"], rec["obj_intr"], rec["obj_view"] = env_view, env_step, env_memo, obj_intr, obj_view
