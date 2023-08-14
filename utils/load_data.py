@@ -34,3 +34,5 @@ eval_msg = load_json(r"data/input/rec/eval_msg.json")
 eval_rec = load_json(r"data/input/rec/eval_rec.json")
 
 lim = load_json(r"data/input/lim/lim.json")
+
+obs_rep = load_json(r"data/input/obs/obs.json")

@@ -19,6 +19,14 @@ class agent:
     def log(self, texts):
         write_log(self.args, self.save_path, texts)
 
+    def desc(self, env_id):
+        self.desc_user_0 = fill_desc_user_0(env_id)
+        self.log(f"\n################## System Message ##################\n")
+        self.log(train_msg['desc_sys'])
+        self.log(self.sys_msg)
+        self.log(train_msg['desc_assis'])
+        self.desc_user_1 = fill_desc_user_1(self.args, env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, lim['desc'])
+
     def train(self):
         if self.args.wandb:
             wandb.init(
@@ -42,17 +50,13 @@ class agent:
             self.log(f"Configurations are:\n{self.args}\n")
 
             self.inv = 0
-            
+            self.past_actions = []
             self.world_map, self.rec = get_track(env_id, env_sizes[str(self.args.seed)])
 
             if skip(env_id):
                 continue
 
-            self.sys_msg = fill_desc_user_0(env_id)
-            self.log(f"\n################## System Message ##################\n")
-            self.log(train_msg['desc_sys'])
-            self.log(self.sys_msg)
-            self.log(train_msg['desc_assis'])
-            self.log(train_msg['desc_user_1_format'])
+            self.pos_x, self_pos_y = self.pos_m[]
 
-            fill_desc_user_1()
+            for step in range(self.args.steps[env_id]):
+                self.desc_response = self.desc(env_id)
