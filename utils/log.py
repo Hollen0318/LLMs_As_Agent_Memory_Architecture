@@ -3,14 +3,14 @@ from datetime import datetime
 from utils.load_data import lim
 
 # Get the saving path for the current argument setting
-def get_path(args, seed, env_id):
+def get_path(args, env_id):
     # The experiment should be classified first in seed, 
     # then mode (Train and Evaluation), then depends on GPT or INPUT,
     # then environment id, depends on its cross property,
     # we create single folder for each environment or together
     # then inside we use parameter setting as folder name
     # then we use the datetime
-    seed_dir = "seed_" + str(seed)
+    seed_dir = "seed_" + str(args.seed)
     if args.eval:
         mode_dir = "eval"
     else:
@@ -32,7 +32,7 @@ def get_path(args, seed, env_id):
     # For same settings, there may be multiple experiment so it's important to distinguish time
     timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
     # These are the parmaters may change in the experiment, they are for us to distinguish them
-    arg_list = ["view", "temp", "memo", "desc", "reason", "n_exp", "c_exp"]
+    arg_list = ["view", "temp", "memo", "desc", "reason", "n_exp", "c_exp", "neg_memo"]
     # Create a folder name from the argument parser args
     folder_name = '_'.join(f'{k}_{v}' for k, v in vars(args).items() if k in arg_list)
     # Combine them to create the full path

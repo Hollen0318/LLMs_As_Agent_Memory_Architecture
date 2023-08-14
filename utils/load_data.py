@@ -9,8 +9,8 @@ def load_json(address):
 def get_pos_m(env_pos):
     pos_m = {}
     for env in env_pos.strip().split("\n"):
-        env_id, x, y, arrow = env.strip().split(', ')
-        pos_m[env_id] = (int(x), int(y), arrow)
+        env_id, x, y, direction = env.strip().split(', ')
+        pos_m[env_id] = (int(x), int(y), direction)
     return pos_m
     
 gpt_map = load_json(r"data/input/gpt/gpt_map.json")
@@ -32,3 +32,5 @@ train_rec = load_json(r"data/input/msg/train_rec.json")
 eval_msg = load_json(r"data/input/rec/eval_msg.json")
 
 eval_rec = load_json(r"data/input/rec/eval_rec.json")
+
+lim = load_json(r"data/input/lim/lim.json")

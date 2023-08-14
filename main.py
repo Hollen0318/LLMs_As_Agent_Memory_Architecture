@@ -1075,6 +1075,11 @@ if __name__ == '__main__':
         default = 10
     )
     parser.add_argument(
+        "--neg-memo",
+        action = "store_true",
+        help = "will the agent have negative memory or only positive memory storage"
+    )
+    parser.add_argument(
         "--n-exp",
         type = int,
         default = 50,
@@ -1105,10 +1110,9 @@ if __name__ == '__main__':
         help = "set the resolution for pygame rendering (width and height)",
     )
     parser.add_argument(
-        "--seeds",
-        nargs = "+",
-        help = "list of random seeds for reproducing results",
-        default = [23],
+        "--seed",
+        help = "random seed for reproducing results",
+        default = 23,
         type = int
     )
     parser.add_argument(
