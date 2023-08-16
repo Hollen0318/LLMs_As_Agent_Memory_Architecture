@@ -1,31 +1,40 @@
 import wandb
-from utils.log import get_path, write_log
+from utils.log import get_path, write_log, log_desc
 from utils.load_data import *
 import utils.api.load_api
-from utils.fill import *
+from utils.exp import initialize_exp, train_exp
+from utils.fill import fill_desc_user_0, fill_desc_user_1
 from utils.world_map import update_world_map
 from utils.skip import skip
 from utils.track import get_track
 from utils.alert import examine
 from datetime import datetime
+from utils.gpt.generate_desc import generate_desc
 
 # This is LLM enabled agent class
 class agent:
 
     def __init__(self, args):
         self.args = examine(args)
-        # Initiate the starting experience
-
+        # The experience should not be initialized here because experience varies very different during training and evaluation.
+        self.init_exp = initialize_exp(args)
     def log(self, texts):
         write_log(self.args, self.save_path, texts)
 
-    def desc(self, env_id):
-        self.desc_user_0 = fill_desc_user_0(env_id)
-        self.log(f"\n################## System Message ##################\n")
+
+    def log_desc(self, env_id):
+        desc_user_0 = fill_desc_user_0(env_id)
         self.log(train_msg['desc_sys'])
-        self.log(self.sys_msg)
+        self.log(desc_user_0)
         self.log(train_msg['desc_assis'])
-        self.desc_user_1 = fill_desc_user_1(self.args, env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, lim['desc'])
+        desc_user_1 = fill_desc_user_1(self.args, env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, self.exp, str(lim['desc']))
+        self.log(desc_user_1)
+        return train_msg['desc_sys'], desc_user_0, train_msg['desc_assis'], desc_user_1
+
+    def get_desc(self, env_id):
+        self.desc = generate_desc(*self.log_desc(env_id))
+        self.log(self.desc)
+        return self.desc
 
     def train(self):
         if self.args.wandb:
@@ -48,7 +57,7 @@ class agent:
             # We need to determine the save path before print the configurations
             self.log(f"################## Starting Experiment ##################\n")
             self.log(f"Configurations are:\n{self.args}\n")
-
+            self.exp = train_exp(self.args, env_id, initialize_exp)
             self.inv = 0
             self.past_actions = []
             self.world_map, self.rec = get_track(env_id, env_sizes[str(self.args.seed)])
@@ -56,7 +65,7 @@ class agent:
             if skip(env_id):
                 continue
 
-            self.pos_x, self_pos_y = self.pos_m[]
+            self.pos_x, self.pos_y, self.direction = self.pos_m[env_id]
 
             for step in range(self.args.steps[env_id]):
-                self.desc_response = self.desc(env_id)
+                self.get_desc(env_id)

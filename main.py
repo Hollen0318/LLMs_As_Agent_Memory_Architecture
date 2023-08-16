@@ -1017,21 +1017,9 @@ if __name__ == '__main__':
         help = "the location to load your OpenAI API Key"
     )
     parser.add_argument(
-        "--c-exp",
-        type = int,
-        default = 100,
-        help = "c_exp is the maximum tokens limit for the generation of summarized experience"
-    )
-    parser.add_argument(
         "--cross",
         action = "store_true",
         help = "whether will agent bring experience from the past environment or they will refresh their experiences once enter new environment during training"
-    )
-    parser.add_argument(
-        "--desc",
-        type = int,
-        default = 100, 
-        help = "desc is the maximum tokens limit for the description of an environment observation representation"
     )
     parser.add_argument(
         "--envs",
@@ -1047,8 +1035,10 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--exp-src",
+        nargs = "+",
         type = str,
-        help = "the starting experience read path"
+        help = "the starting experience read path",
+        default = ["start_exp.txt"]
     )
     parser.add_argument(
         "--gpt",
@@ -1118,7 +1108,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--steps",
         nargs = "+",
-        help = "list of steps taken in the args.env, it should have the same length as the environment",
+        help = "list of steps taken in the args.env, it should have the same length as the environment, used both in trainng and evaluation",
         default = [100],
         type = int
     )
