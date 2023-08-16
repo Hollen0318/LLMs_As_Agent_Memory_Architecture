@@ -30,6 +30,12 @@ def temp_envs_same_length(args):
         args.temp = [args.temp[0] for i in range(len(args.envs))]
     return args
 
+def view_envs_same_length(args):
+    if len(args.view) != len(args.envs):
+        warnings.warn(f"The view length {len(args.view)} is not the same as the envs {len(args.envs)}, will use the first temp parameter {args.view[0]} for all environments", UserWarning)
+        args.view = [args.view[0] for i in range(len(args.envs))]
+    return args
+
 def examine(args):
     args = steps_envs_same_length(args)
     args = gpt_envs_same_length(args)

@@ -1,6 +1,6 @@
 import json
 from utils.load_data import *
-from utils.world_map import compose_world_map
+from utils.track import compose_world_map
 
 def fill_desc_user_0(env_id):
     desc_user_0 = train_msg['desc_user_0']

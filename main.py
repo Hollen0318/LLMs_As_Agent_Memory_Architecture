@@ -1122,9 +1122,10 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--view",
+        nargs = "+",
         type = int,
-        default = 7,
-        help = "set the number of grid spaces visible in agent-view ",
+        default = [7],
+        help = "set the number of grid spaces visible in agent-view "
     )
     parser.add_argument(
         "--wandb",
