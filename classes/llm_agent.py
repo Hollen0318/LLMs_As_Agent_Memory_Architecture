@@ -18,6 +18,7 @@ class agent:
         self.args = examine(args)
         # The experience should not be initialized here because experience varies very different during training and evaluation.
         self.init_exp = initialize_exp(args)
+
     def log(self, texts):
         write_log(self.args, self.save_path, texts)
 
@@ -57,7 +58,7 @@ class agent:
             # We need to determine the save path before print the configurations
             self.log(f"################## Starting Experiment ##################\n")
             self.log(f"Configurations are:\n{self.args}\n")
-            self.exp = train_exp(self.args, env_id, initialize_exp)
+            self.exp = train_exp(self.args, env_id, self.init_exp)
             self.inv = 0
             self.past_actions = []
             self.world_map, self.rec = get_track(env_id, env_sizes[str(self.args.seed)])

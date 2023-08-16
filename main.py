@@ -14,6 +14,7 @@ import json
 import numpy as np
 import re
 from classes.llm_agent import agent
+from utils.gpt.initialize_gpt import load_api_key
 
 # Function to return what GPT returns in sring format
 def choose_act(action):
@@ -1130,7 +1131,7 @@ if __name__ == '__main__':
         help = "whether to use wandb to record experiments"
     )
     args = parser.parse_args()
-
+    load_api_key(args.API_KEY)
     # Create the agent
     llm_agent = agent(args)
     
