@@ -1115,9 +1115,10 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--temp",
+        nargs = "+",
         type = float,
-        default = 0.7,
-        help = "the temprature used by the OpenAI API"
+        default = [0.7],
+        help = "the list of temprature used by the OpenAI API"
     )
     parser.add_argument(
         "--view",

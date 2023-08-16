@@ -3,13 +3,14 @@ from utils.log import get_path, write_log, log_desc
 from utils.load_data import *
 import utils.api.load_api
 from utils.exp import initialize_exp, train_exp
-from utils.fill import fill_desc_user_0, fill_desc_user_1
+from utils.fill import fill_desc_user_0, fill_desc_user_1, fill_reason_user_0
 from utils.world_map import update_world_map
 from utils.skip import skip
 from utils.track import get_track
 from utils.alert import examine
 from datetime import datetime
 from utils.gpt.generate_desc import generate_desc
+from utils.gpt.generate_reason import generate_reason
 
 # This is LLM enabled agent class
 class agent:
@@ -24,18 +25,30 @@ class agent:
 
 
     def log_desc(self, env_id):
-        desc_user_0 = fill_desc_user_0(env_id)
         self.log(train_msg['desc_sys'])
-        self.log(desc_user_0)
+        self.desc_user_0 = fill_desc_user_0(env_id)
+        self.log(self.desc_user_0)
         self.log(train_msg['desc_assis'])
-        desc_user_1 = fill_desc_user_1(self.args, env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, self.exp, str(lim['desc']))
-        self.log(desc_user_1)
-        return train_msg['desc_sys'], desc_user_0, train_msg['desc_assis'], desc_user_1
+        self.desc_user_1 = fill_desc_user_1(env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, self.exp, str(lim['desc']))
+        self.log(self.desc_user_1)
+        return train_msg['desc_sys'], self.desc_user_0, train_msg['desc_assis'], self.desc_user_1
 
     def get_desc(self, env_id):
-        self.desc = generate_desc(*self.log_desc(env_id))
+        self.desc = generate_desc(self.args, *self.log_desc(env_id), env_id)
         self.log(self.desc)
-        return self.desc
+
+    def log_reason(self):
+        self.reason_user_0 = fill_reason_user_0(lim["reason"])
+        self.log(self.reason_user_0)
+        return train_msg['desc_sys'], self.desc_user_0, train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0
+    
+    def get_reason(self, env_id):
+        self.reason = generate_reason(self.args, *self.log_reason(), env_id)
+
+    def log_action(self):
+
+    def get_action(self, env_id):
+        self.
 
     def train(self):
         if self.args.wandb:
@@ -70,3 +83,5 @@ class agent:
 
             for step in range(self.args.steps[env_id]):
                 self.get_desc(env_id)
+                self.get_reason(env_id)
+                self.get_action(env_id)

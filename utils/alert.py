@@ -21,8 +21,18 @@ def exp_envs_same_length(args):
         args.exp_src = [args.exp_src[0] for i in range(len(args.envs))]
     return args
 
+def temp_envs_same_length(args):
+    if len(args.temp) != len(args.envs):
+        warnings.warn(f"The API temp length {len(args.temp)} is not the same as the envs {len(args.envs)}, will use the first temp parameter {args.temp[0]} for all environments", UserWarning)
+        args.temp = [args.temp[0] for i in range(len(args.envs))]
+    if args.cross and len(args.temp) > 1:
+        warnings.warn(f"--cross is set to be ture, but temp length is {len(args.temp)}, which is larger than 1, so only one temp value will be used which is the first temp parameter {args.temp[0]}", UserWarning)
+        args.temp = [args.temp[0] for i in range(len(args.envs))]
+    return args
+
 def examine(args):
     args = steps_envs_same_length(args)
     args = gpt_envs_same_length(args)
     args = exp_envs_same_length(args)
+    args = temp_envs_same_length(args)
     return args
