@@ -1,6 +1,6 @@
 import openai
 from utils.gpt.chat import no_func_chat
-from utils.load_data import lim, train_msg
+from utils.load_data import lim
 
 def generate_reason(args, desc_sys, desc_user_0, desc_assis, desc_user_1, desc_ans, reason_user_0, env_id):
     msg = [{"role": "system", "content": desc_sys}, {"role": "user", "content": desc_user_0}, {"role": "assistant", "content": desc_assis}, {"role": "user", "content":desc_user_1}, {"role": "assistant", "content": desc_ans}, {"role": "user", "content": reason_user_0}]

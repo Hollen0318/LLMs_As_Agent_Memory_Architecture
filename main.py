@@ -1023,6 +1023,12 @@ if __name__ == '__main__':
         help = "whether will agent bring experience from the past environment or they will refresh their experiences once enter new environment during training"
     )
     parser.add_argument(
+        "--delay",
+        type = int,
+        default = 5,
+        help = "the number of seconds to delay when in OpenAI API Calling"
+    )
+    parser.add_argument(
         "--envs",
         nargs = "+",
         help = "list of environment names, see the ./utilities/envs_mapping.txt for mapping between index and env",
@@ -1087,12 +1093,6 @@ if __name__ == '__main__':
         type = int,
         default = 100, 
         help = "reason is the maximum tokens limit for the reasons of choices"
-    )
-    parser.add_argument(
-        "--rty-dly",
-        type = int,
-        default = 5,
-        help = "the number of seconds to delay when in OpenAI API Calling"
     )
     parser.add_argument(
         "--screen",

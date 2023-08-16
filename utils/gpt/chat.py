@@ -37,4 +37,3 @@ def func_chat(model, msg, fuc, temp, lim, delay):
             delay *= 2
 
     return ans
-
