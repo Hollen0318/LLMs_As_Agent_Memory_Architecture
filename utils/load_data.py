@@ -1,4 +1,5 @@
 import json
+from classes.Minigrid.minigrid.core.actions import Actions
 
 # Load the utilities JSON
 def load_json(address):
@@ -38,3 +39,6 @@ lim = load_json(r"data/input/lim/lim.json")
 obs_rep = load_json(r"data/input/obs/obs.json")
 
 act_obj = load_json(r"data/input/act/act_obj.json")
+
+act_minigrid_obj = {"left": Actions.left, "right": Actions.right, "toggle": Actions.toggle,
+                    "forward": Actions.forward, "pick up": Actions.pickup, "drop off": Actions.drop}

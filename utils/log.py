@@ -52,3 +52,16 @@ def write_log(args, save_path, text):
     with open(os.path.join(save_path, f"log.txt"), "a", encoding='utf-8') as file:
         # Write the strings to the file
         file.write(text)
+
+        
+# reason_length = count_tokens(reason)
+# with open(os.path.join(save_path, f"env_{i}_idx_{str(j+1)}_reason_{str(reason_length)}.txt"), 'w') as file:
+#     file.write(reason)
+
+# exp_length = count_tokens(exp)
+# with open(os.path.join(save_path, f"env_{i}_idx_{str(j+1)}_exp_{str(exp_length)}.txt"), 'w') as file:
+#     file.write(c_exp)
+
+# desc_length = count_tokens(desc)
+# with open(os.path.join(save_path, f"env_{i}_idx_{str(j+1)}_desc_{str(desc_length)}.txt"), 'w') as file:
+#     file.write(desc)
