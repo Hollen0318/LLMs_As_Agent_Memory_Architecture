@@ -266,8 +266,10 @@ class agent:
         
         self.log(self.desc)
     
-    def get_experience(self):
-        self.n_exp = generate_n_exp()
+    def get_n_exp(self, env_id):
+        self.n_exp = generate_n_exp(self.args, *self.log_n_exp(env_id), env_id)
+
+        self.log(self.n_exp)
 
     def get_reason(self, env_id):
         self.reason = generate_reason(self.args, *self.log_reason(), env_id)
@@ -280,24 +282,27 @@ class agent:
         self.act_user_0 = train_msg["act_user_0"]
         
         self.log(self.act_user_0)
-        return train_msg['desc_sys'], self.desc_user_0, train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0, self.reason, self.act_user_0, train_msg["fuc_msg"], train_msg["fuc_desc"]
+        return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0, self.reason, self.act_user_0, train_msg["fuc_msg"], train_msg["fuc_desc"]
     
     def log_desc(self, env_id):
-        self.desc_user_0 = fill_desc_user_0(env_id)
         self.desc_user_1 = fill_desc_user_1(env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, self.exp, str(lim['desc']))
 
         self.log(train_msg['desc_sys'])
-        self.log(self.desc_user_0)
+        self.log(train_msg["desc_user_0"])
         self.log(train_msg['desc_assis'])
         self.log(self.desc_user_1)
 
-        return train_msg['desc_sys'], self.desc_user_0, train_msg['desc_assis'], self.desc_user_1
+        return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1
+    
+    def log_n_exp(self, env_id):
+        self.n_exp_user_0 = fill_n_exp_user_0(self.act_l, )
+
 
     def log_reason(self):
         self.reason_user_0 = fill_reason_user_0(lim["reason"])
         
         self.log(self.reason_user_0)
-        return train_msg['desc_sys'], self.desc_user_0, train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0
+        return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0
 
     def old_world_map(self):
         o_world_map = {}
@@ -379,14 +384,16 @@ class agent:
                 if isinstance(self.action, list):
                     img_l = []
                     metric_l = []
+                    self.act_l = []
                     for act_int in self.action:
                         img_l.append(self.save_image(env_id, step))
-                        act = int_act[str(act_int)]
+                        act =int_act[str(act_int)]
+                        self.act_l.append(act)
                         # World map updated inside the execute_action
                         self.execute_action(act)
                         metric_l.append(self.get_metrics())
                         step += 1
-                    self.get_experience()
+                    self.get_n_exp(env_id)
                     self.summarize_experience()
                     self.get_length()
                     for i in range(len(self.action)):
