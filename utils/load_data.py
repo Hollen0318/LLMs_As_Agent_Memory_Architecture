@@ -6,7 +6,6 @@ def load_json(address):
     with open(address, 'r', encoding='utf-8') as f:
         return json.load(f)
     
-# Function to get re-spawn position (when seed = 23 only)
 def get_pos_m(env_pos):
     pos_m = {}
     for env in env_pos.strip().split("\n"):
@@ -38,7 +37,4 @@ lim = load_json(r"data/input/lim/lim.json")
 
 obs_rep = load_json(r"data/input/obs/obs.json")
 
-act_obj = load_json(r"data/input/act/act_obj.json")
-
-act_minigrid_obj = {"left": Actions.left, "right": Actions.right, "toggle": Actions.toggle,
-                    "forward": Actions.forward, "pick up": Actions.pickup, "drop off": Actions.drop}
+int_act = load_json(r"data/input/act/act_obj.json")

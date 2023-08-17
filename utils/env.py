@@ -11,5 +11,6 @@ def start_env(args, env_id):
         screen_size = args.screen
     )
     return env
+
 def reset_env(env, seed):
     return env.reset(seed=seed)
