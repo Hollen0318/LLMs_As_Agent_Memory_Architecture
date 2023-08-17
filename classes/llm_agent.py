@@ -21,7 +21,6 @@ class agent:
     def __init__(self, args):
         if not args.eval:
             self.args = train_examine(args)
-        # TODO: The init_exp could be a list, need to study whether we have utilized it
         self.init_exp = initialize_exp(args)
     
     def add_data(self, img, obs, desc, reason, act, n_exp, c_exp, c_world_map):
@@ -140,12 +139,9 @@ class agent:
                 config = vars(self.args)
             )
         
-        # Getting the environment list
         if self.args.all:
             self.envs = [i for i in range(len(env_ids))]
 
-        # For each seed, we will have new world maps and record because different seed has different layout
-        # For each environment, we obtain its unique world map and rec
         self.pos_m = get_pos_m(env_pos[str(self.args.seed)])
 
         for env_id in self.args.envs:
@@ -156,6 +152,7 @@ class agent:
             self.exp = train_exp(self.args, env_id, self.init_exp)
             self.inv = 0
             self.past_actions = []
+            # TODO Check if the get_track returns correct world map, rec
             self.world_map, self.rec = get_track(env_id, env_sizes[str(self.args.seed)])
 
             if skip(env_id):
