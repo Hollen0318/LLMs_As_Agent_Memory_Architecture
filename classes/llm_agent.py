@@ -1,11 +1,11 @@
 import wandb
-from utils.log import get_path, write_log, log_desc
+from utils.log import get_path, write_log
 from utils.load_data import *
 from utils.exp import initialize_exp, train_exp
 from utils.fill import fill_desc_user_0, fill_desc_user_1, fill_reason_user_0
 from utils.skip import skip
 from utils.track import get_track, update_world_map
-from utils.alert import examine
+from utils.alert import train_examine
 from datetime import datetime
 from utils.gpt.generate_desc import generate_desc
 from utils.gpt.generate_reason import generate_reason
@@ -19,8 +19,9 @@ import os
 class agent:
 
     def __init__(self, args):
-        self.args = examine(args)
-        # The experience should not be initialized here because experience varies very different during training and evaluation.
+        if not args.eval:
+            self.args = train_examine(args)
+        # TODO: The init_exp could be a list, need to study whether we have utilized it
         self.init_exp = initialize_exp(args)
     
     def add_data(self, img, obs, desc, reason, act, n_exp, c_exp, c_world_map):
@@ -177,9 +178,34 @@ class agent:
                 self.get_action(env_id)
                 
                 if isinstance(self.action, list):
+                    img_l = []
+                    metric_l = []
+                    length_l = []
                     for act in self.action:
+                        img_l.append(self.save_image(env_id, step))
                         act_s = act_obj[str(act)]
                         self.execute_action(act_s)
+                        metric_l.append(self.get_metrics())
+                        length_l.append(self.get_length())
+                        step += 1
+                    self.get_experience()
+                    self.summarize_experience()
+                    for i in range(len(self.action)):
+                        self.add_data(img_l[i], self.desc_user_1, self.desc, self.reason, str(self.action[i]), self.n_exp, self.s_exp)
+                        self.add_metric(metric_l[i], length_l[i])
 
-                img = self.save_image(env_id, 0)
-                self.add_data(img, self.desc_user_1, self.desc, self.reason, str(self.act), )
+                elif isinstance(self.action, int):
+                    act_s = act_obj[str(act)]
+                    img = self.save_image(env_id, step)
+                    self.execute_action(act_s)
+                    self.get_metrics()
+                    self.get_length
+                    self.get_experience()
+                    self.summarize_experience()
+                    self.add_data(img, self.desc_user_1, self.desc, self.reason, str(self.action), self.n_exp, self.s_exp)
+                    self.add_metric(self.metric, self.length)
+
+            self.env_close()
+            self.save_table()
+
+        self.save_wandb()

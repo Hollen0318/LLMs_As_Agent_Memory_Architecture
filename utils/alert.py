@@ -7,7 +7,7 @@ def steps_envs_same_length(args):
     return args
 
 def gpt_envs_same_length(args):
-    if len(args.steps) != len(args.envs):
+    if len(args.gpt) != len(args.envs):
         warnings.warn(f"The parameter gpt length {len(args.gpt)} is not the same as the envs {len(args.envs)}, will use the first steps {args.gpt[0]} for all environments!", UserWarning)
         args.gpt = [args.gpt[0] for i in range(len(args.envs))]
     if args.cross and len(args.gpt) > 1:
@@ -36,9 +36,10 @@ def view_envs_same_length(args):
         args.view = [args.view[0] for i in range(len(args.envs))]
     return args
 
-def examine(args):
+def train_examine(args):
     args = steps_envs_same_length(args)
     args = gpt_envs_same_length(args)
     args = exp_envs_same_length(args)
     args = temp_envs_same_length(args)
+    args = view_envs_same_length(args)
     return args
