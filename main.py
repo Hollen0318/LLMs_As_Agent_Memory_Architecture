@@ -66,33 +66,15 @@ if __name__ == '__main__':
         help = "print the logging informations by print()"
     )
     parser.add_argument(
-        "--memo",
-        type = int,
-        help = "memo is the maximum number of actions spaces an agent can remember, with this being set as 5 for example, when an agent see a space, that space will be set as 5 and while all others will be deducted by 1",
-        default = 10
-    )
-    parser.add_argument(
         "--neg-memo",
         action = "store_true",
         help = "will the agent have negative memory or only positive memory storage"
-    )
-    parser.add_argument(
-        "--n-exp",
-        type = int,
-        default = 50,
-        help = "n_exp is the maximum tokens limit for the generation of new experience"
     )
     parser.add_argument(
         "--prj-name",
         type = str,
         help = "the project name for your wandb",
         default = "LLM As Agent"
-    )
-    parser.add_argument(
-        "--reason",
-        type = int,
-        default = 100, 
-        help = "reason is the maximum tokens limit for the reasons of choices"
     )
     parser.add_argument(
         "--screen",
