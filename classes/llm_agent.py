@@ -66,30 +66,29 @@ class agent:
         self.world_map_table_df = pd.DataFrame(columns=world_map_table_columns)
         self.metrics_table_df = pd.DataFrame(columns=metrics_table_columns)
 
-    def execute_action(self, act):
+    def execute_action(self, act, env_id):
         if act == "left":
             # We update the world map, env view, env memo, obj_view, act history, arrow
-            self.n_direction = left_arrow(self.direction)
-            self.n_obs, _, terminated, _, _ = self.env.step(Actions.left)
+            self.direction = left_arrow(self.direction)
+            self.obs, _, terminated, _, _ = self.env.step(Actions.left)
             self.past_actions.append(act)
-            _, _, _ = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.n_obs, self.rec)
+            _, _, _ = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
 
         elif act == "right":
-            self.n_direction = right_arrow(self.direction)
-            self.n_obs, _, terminated, _, _ = self.env.step(Actions.right)
+            self.direction = right_arrow(self.direction)
+            self.obs, _, terminated, _, _ = self.env.step(Actions.right)
             self.past_actions.append(act)
-            _, _, _ = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.n_obs, self.rec)
+            _, _, _ = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
 
         elif act == "forward":
-            self.n_obs, _, terminated, _, _ = self.env.step(Actions.forward)
+            self.obs, _, self.terminated, _, _ = self.env.step(Actions.forward)
             self.past_actions.append(act)
-            if terminated:
-                # For each new environment, the inventory is always 0
+            if self.terminated:
                 inv = 0
                 # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
-                self.n_pos_x, self.n_pos_y, self.n_direction = self.pos_m[env_id]
+                self.pos_x, self.pos_y, self.direction = self.pos_m[env_id]
                 # Initilize the environment
-                obs, state = env.reset(seed=args.seed)
+                self.obs, _ = reset_env(self.env, self.args.seed)
                 front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
                 write_log(args, save_path, f"\n*************************************************\n\nDoing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
                 world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
@@ -252,9 +251,9 @@ class agent:
             obs = n_obs
             inv = n_inv
 
-    # We refresh the action history every args.refresh run to avoid too large action space
-    if len(act_his) >= args.memo:
-        act_his = act_his[1:]
+        # We refresh the action history every args.refresh run to avoid too large action space
+        if len(act_his) >= args.memo:
+            act_his = act_his[1:]
 
     def get_action(self, env_id):
         self.action = generate_action(self.args, *self.log_action(), env_id)
@@ -275,6 +274,10 @@ class agent:
         self.reason = generate_reason(self.args, *self.log_reason(), env_id)
         self.log(self.reason)
 
+    def get_s_exp(self, env_id):
+        self.exp = generate_s_exp(self.args, *self.log_s_exp(env_id), env_id)
+        self.log(self.exp)
+
     def log(self, texts):
         write_log(self.args, self.save_path, texts)
 
@@ -285,7 +288,7 @@ class agent:
         return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0, self.reason, self.act_user_0, train_msg["fuc_msg"], train_msg["fuc_desc"]
     
     def log_desc(self, env_id):
-        self.desc_user_1 = fill_desc_user_1(env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, self.exp, str(lim['desc']))
+        self.desc_user_1 = fill_desc_user_1(env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, self.exp, lim['desc'])
 
         self.log(train_msg['desc_sys'])
         self.log(train_msg["desc_user_0"])
@@ -295,14 +298,22 @@ class agent:
         return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1
     
     def log_n_exp(self, env_id):
-        self.n_exp_user_0 = fill_n_exp_user_0(self.act_l, )
+        self.n_exp_user_0 = fill_n_exp_user_0(self.act_l, env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, lim["n_exp"])
 
+        self.log(self.n_exp_user_0)
+        return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0, self.reason, self.n_exp_user_0
 
     def log_reason(self):
         self.reason_user_0 = fill_reason_user_0(lim["reason"])
         
         self.log(self.reason_user_0)
         return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0
+
+    def log_s_exp(self):
+        self.s_exp_user_0 = fill_s_exp_user_0(lim["s_exp"])
+
+        self.log(self.s_exp_user_0)
+        return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0, self.reason, self.n_exp_user_0, self.n_exp, self.s_exp_user_0
 
     def old_world_map(self):
         o_world_map = {}
@@ -387,14 +398,16 @@ class agent:
                     self.act_l = []
                     for act_int in self.action:
                         img_l.append(self.save_image(env_id, step))
+                        metric_l.append(self.get_metrics())
                         act =int_act[str(act_int)]
                         self.act_l.append(act)
                         # World map updated inside the execute_action
-                        self.execute_action(act)
-                        metric_l.append(self.get_metrics())
+                        self.execute_action(act, env_id)
+                        if self.terminated:
+                            break
                         step += 1
                     self.get_n_exp(env_id)
-                    self.summarize_experience()
+                    self.get_s_exp(env_id)
                     self.get_length()
                     for i in range(len(self.action)):
                         self.add_data(img_l[i], self.desc_user_1, self.desc, self.reason, str(self.action[i]), self.n_exp, self.s_exp)

@@ -35,6 +35,6 @@ eval_rec = load_json(r"data/input/rec/eval_rec.json")
 
 lim = load_json(r"data/input/lim/lim.json")
 
-obs_rep = load_json(r"data/input/obs/obs.json")
+obs_rep = load_json(r"data/input/obs/obs_rep.json")
 
-int_act = load_json(r"data/input/act/act_obj.json")
+int_act = load_json(r"data/input/act/int_act.json")
