@@ -24,6 +24,12 @@ class agent:
         if not args.eval:
             self.args = train_examine(args)
         self.init_exp = initialize_exp(args)
+
+    def act_forward(self):
+        self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
+        self.pos_x, self.pos_y = update_pos(self.pos_x, self.pos_y, self.direction)
+        self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
+
     
     def add_data(self, img, obs, desc, reason, act, n_exp, c_exp, c_world_map):
         if self.args.wandb:
@@ -35,41 +41,78 @@ class agent:
         self.rec_table_df.loc[len(self.rec_table_df)] = [str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]).replace(".", "")]
         self.world_map_table_df.loc[len(self.world_map_table_df)] = [str(self.world_map[0]).replace("'", ""), str(self.world_map[1]).replace("'", ""), str(self.world_map[2]).replace("'", ""), str(c_world_map).replace("'", "")]
 
-    def add_length():
-        pass
+    def add_length(self, tokens_sum, length, env_id):
+        if self.args.wandb:
+            # Log the metrics
+            length_metrics = {
+                f"Environment # {env_id}/tokens_sum": tokens_sum,
+                f"Environment # {env_id}/desc_sys": length["desc_sys"],
+                f"Environment # {env_id}/desc_user_0": length["desc_user_0"],
+                f"Environment # {env_id}/desc_assis": length["desc_assis"],
+                f"Environment # {env_id}/desc_user_1": length["desc_user_1"],
+                f"Environment # {env_id}/desc": length["desc"],
+                f"Environment # {env_id}/reason_user_0": length["reason_user_0"],
+                f"Environment # {env_id}/reason": length["reason"],
+                f"Environment # {env_id}/n_exp_user_0": length["n_exp_user_0"],
+                f"Environment # {env_id}/n_exp": length["n_exp"],
+                f"Environment # {env_id}/s_exp_user_0": length["s_exp_user_0"],
+                f"Environment # {env_id}/s_exp": length["s_exp"]
+            }
+            wandb.log(length_metrics)
+        
+        self.length_table_df.loc[len(self.length_table_df)] = [tokens_sum, length["desc_sys"], length["desc_user_0"], length["desc_assis"], length["desc_user_1"], length["desc"], length["reason_user_0"], length["reason"], length["n_exp_user_0"], length["n_exp"], length["s_exp_user_0"], length["s_exp"]]
 
-    def add_metric(self, ratio):
+    def add_metric(self, ratio, env_id):
         if self.args.wandb:
             # Log the metrics
             metrics = {
-            "env_view_ratio": ratio["env_view"],
-            "env_memo_ratio": ratio["env_memo"],
-            "env_step_ratio": ratio["env_step"],
-            "obj_view_ratio": ratio["obj_view"],
-            "obj_intr_ratio": ratio["obj_intr"]
+            f"Environment # {env_id}/env_view_ratio": ratio["env_view"],
+            f"Environment # {env_id}/env_memo_ratio": ratio["env_memo"],
+            f"Environment # {env_id}/env_step_ratio": ratio["env_step"],
+            f"Environment # {env_id}/obj_view_ratio": ratio["obj_view"],
+            f"Environment # {env_id}/toggle_ratio": ratio["toggle"],
+            f"Environment # {env_id}/pickup_ratio": ratio["pick up"],
+            f"Environment # {env_id}/dropoff_ratio": ratio["drop off"]
             }
             wandb.log(metrics)
         
-        self.metrics_table_df.loc[len(self.metrics_table_df)] = [ratio["env_view"], ratio["env_memo"], ratio["env_step"], ratio["obj_view"], ratio["obj_intr"], length]
+        self.metrics_table_df.loc[len(self.metrics_table_df)] = [ratio["env_view"], ratio["env_step"], ratio["env_memo"], ratio["obj_view"], ratio["toggle"], ratio["pick up"], ratio["drop off"]]
 
     def create_table(self):
         if self.args.wandb:
             # This table records the screen shot, the text (observation representation), then the description for that observation representation, reason, action being taken (if it is multiple then we print same act in different screenshots), then we have the new experience (if it is multiple then we print same n_exp), (we will have summarized experience same way too)
             self.scn_table = wandb.Table(columns = ["img", "obs", "desc", "reason", "act", "n_exp", "s_exp"])
-            self.rec_table = wandb.Table(columns = ["env_view", "env_step", "env_memo", "obj_view", "obj_intr"])
+            self.rec_table = wandb.Table(columns = ["env_view", "env_step", "env_memo", "obj_view", "toggle", "pick up", "drop off"])
             self.world_map_table = wandb.Table(columns = ["world_map_obj", "world_map_col", "world_map_sta", "c_world_map"])
             
         # we save them to the csv
         # Define table structure
         scn_table_columns = ["img", "obs", "desc", "reason", "act", "n_exp", "s_exp"]
-        rec_table_columns = ["env_view", "env_step", "env_memo", "obj_view", "obj_intr"]
+        rec_table_columns = ["env_view", "env_step", "env_memo", "obj_view", "toggle", "pick up", "drop off"]
         world_map_table_columns = ["world_map_obj", "world_map_col", "world_map_sta", "c_world_map"]
-        metrics_table_columns = ["env_view", "env_memo", "env_step", "obj_view", "obj_intr", "exp_length"]
-
+        metrics_table_columns = ["env_view", "env_step", "env_memo", "obj_view", "toggle", "pick up", "drop off"]
+        length_table_columns = ["sum", "desc_sys", "desc_user_0", "desc_assis", "desc_user_1", "desc", "reason_user_0", "reason", "n_exp_user_0", "n_exp", "s_exp_user_0", "s_sxp"]
+        
         self.scn_table_df = pd.DataFrame(columns=scn_table_columns)
         self.env_table_df = pd.DataFrame(columns=rec_table_columns)
         self.world_map_table_df = pd.DataFrame(columns=world_map_table_columns)
         self.metrics_table_df = pd.DataFrame(columns=metrics_table_columns)
+        self.length_table_df = pd.DataFrame(columns=length_table_columns)
+
+    def env_close(self, env_id):
+        self.env.close()
+        # Log datas to the wandb
+        if self.args.wandb:
+            wandb.log({f"Table/Screenshot Table for Environment #{env_id}": self.scn_table})
+            wandb.log({f"Table/Record Table for Environment #{env_id}": self.rec_table})
+            wandb.log({f"Table/World Map for Environment #{env_id}": self.world_map_table})
+
+        # Save to CSV
+        self.scn_table_df.to_csv(os.path.join(self.save_path, f'scn_table_env_{env_id}.csv'), index = True)
+        self.rec_table_df.to_csv(os.path.join(self.save_path, f'rec_table_env_{env_id}.csv'), index = True)
+        self.world_map_table_df.to_csv(os.path.join(self.save_path, f'world_map_table_env_{env_id}.csv'), index = True)
+        self.metrics_table_df.to_csv(os.path.join(self.save_path, f'metrics_env_{env_id}.csv'), index = True)
+        self.length_table_df.to_csv(os.path.join(self.save_path, f"length_table_env_{env_id}.csv"), index = True)
 
     def execute_action(self, act, env_id):
         if act == "left":
@@ -176,12 +219,7 @@ class agent:
         if len(self.past_actions) >= self.args.memo:
             self.past_actions = self.past_actions[1:]
 
-    def act_forward(self):
-        self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
-        self.pos_x, self.pos_y = update_pos(self.pos_x, self.pos_y, self.direction)
-        self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
 
-    
     def get_action(self, env_id):
         self.action = generate_action(self.args, *self.log_action(), env_id)
 
@@ -192,19 +230,21 @@ class agent:
         
         self.log(self.desc)
     
-    def get_length(self, env_id):
-        sum = 0
-        sum += tokens_count(train_msg["desc_sys"])
-        sum += tokens_count(self.desc_user_1)
-        sum += tokens_count(train_msg["desc_user_0"])
-        sum += tokens_count(train_msg["desc_assis"])
-        sum += tokens_count(self.desc)
-        sum += tokens_count(self.reason_user_0)
-        sum += tokens_count(self.reason)
-        sum += tokens_count(self.n_exp_user_0)
-        sum += tokens_count(self.n_exp)
-        sum += tokens_count(self.s_exp_user_0)
-        return sum, tokens_count(self.desc_user_1), tokens_count(self.desc), tokens_count(self.reason_user_0), tokens_count(self.reason), tokens_count(self.n_exp_user_0), tokens_count(self.n_exp), tokens_count(self.s_exp_user_0)
+    def get_length(self):
+        length = {}
+        length["desc_sys"] = tokens_count(train_msg["desc_sys"])
+        length["desc_user_0"] = tokens_count(train_msg["desc_user_0"])
+        length["desc_assis"] = tokens_count(train_msg["desc_assis"])
+        length["desc_user_1"] = tokens_count(self.desc_user_1)
+        length["desc"] = tokens_count(self.desc)
+        length["reason_user_0"] = tokens_count(self.reason_user_0)
+        length["reason"] = tokens_count(self.reason)
+        length["n_exp_user_0"] = tokens_count(self.n_exp_user_0)
+        length["n_exp"] = tokens_count(self.n_exp)
+        length["s_exp_user_0"] = tokens_count(self.s_exp_user_0)
+        length["s_exp"] = tokens_count(self.exp)
+        tokens_sum = sum(length.values())
+        return tokens_sum, length
 
     def get_metrics(self):
         env_view_r = np.count_nonzero(self.rec["env_view"]) / np.size(self.rec["env_view"]) * 100
@@ -328,6 +368,10 @@ class agent:
         img.save(os.path.join(self.args.save_path, f"env_{env_id}_{step}.png"))
         return img
 
+    def save_wandb(self):
+        if self.args.wandb:
+            wandb.finish()
+
     def train(self):
         if self.args.wandb:
             wandb.init(
@@ -399,8 +443,8 @@ class agent:
                         
                     for i in range(len(self.action)):
                         self.add_data(img_l[i], self.desc_user_1, self.desc, self.reason, str(self.act_l[i]), self.n_exp, self.s_exp)
-                        self.add_metric(*metric_l[i])
-                    self.add_length(*self.get_length())
+                        self.add_metric(*metric_l[i], env_id)
+                    self.add_length(*self.get_length(), env_id)
                 elif isinstance(self.action, int):
                     self.act_l = []
                     act = int_act[str(self.action)]
@@ -415,8 +459,8 @@ class agent:
                         self.terminated = False
                         self.get_s_exp(env_id)
                     self.add_data(img, self.desc_user_1, self.desc, self.reason, act, self.n_exp, self.s_exp)
-                    self.add_metric(*metrics)
-                    self.add_length(*self.get_length())
+                    self.add_metric(*metrics, env_id)
+                    self.add_length(*self.get_length(), env_id)
             self.env_close()
             self.save_table()
 
