@@ -27,13 +27,9 @@ minigrid_mission = load_json(r"data/input/goals/minigrid_mission.json")
 
 train_msg = load_json(r"data/input/msg/train_msg.json")
 
-train_rec = load_json(r"data/input/msg/train_rec.json")
-
 rpt_msg = load_json(r"data/input/msg/rpt_msg.json")
 
-eval_msg = load_json(r"data/input/rec/eval_msg.json")
-
-eval_rec = load_json(r"data/input/rec/eval_rec.json")
+eval_msg = load_json(r"data/input/msg/eval_msg.json")
 
 lim = load_json(r"data/input/lim/lim.json")
 

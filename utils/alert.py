@@ -16,9 +16,10 @@ def gpt_envs_same_length(args):
     return args
 
 def exp_envs_same_length(args):
-    if len(args.exp_src) != len(args.envs):
-        warnings.warn(f"The experience source length {len(args.exp_src)} is not the same as the envs {len(args.envs)}, will use the first exp source parameter {args.exp_src[0]} for all environments", UserWarning)
-        args.exp_src = [args.exp_src[0] for i in range(len(args.envs))]
+    if args.exp_src is not None:
+        if len(args.exp_src) != len(args.envs):
+            warnings.warn(f"The experience source length {len(args.exp_src)} is not the same as the envs {len(args.envs)}, will use the first exp source parameter {args.exp_src[0]} for all environments", UserWarning)
+            args.exp_src = [args.exp_src[0] for i in range(len(args.envs))]
     return args
 
 def temp_envs_same_length(args):

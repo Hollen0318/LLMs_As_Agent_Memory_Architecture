@@ -18,6 +18,7 @@ def initialize_exp(args):
                 exp = [open(args.exp_src[i]).read() for i in range(len(args.envs))]
             else:
                 exp = ["" for i in range(len(args.envs))]
+    return exp
 
 def train_exp(args, env_id, exp):
     if args.cross:

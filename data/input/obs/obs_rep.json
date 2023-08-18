@@ -1,6 +1,7 @@
 {
     "object": {
         "-": "-",
+        "0": "nothing",
         "1": "Empty",
         "2": "Wall",
         "3": "Floor",

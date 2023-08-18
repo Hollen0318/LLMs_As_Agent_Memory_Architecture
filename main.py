@@ -1,8 +1,7 @@
 # Packages
 import argparse
 from classes.llm_agent import agent
-from utils.gpt.initialize_gpt import load_api_key
-
+from utils.gpt.chat import load_api_key
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -12,8 +11,8 @@ if __name__ == '__main__':
         help = "to load all the environments if given",
     )
     parser.add_argument(
-        "--API-key",
-        default = "./utilities/API/API_KEY",
+        "--API-KEY",
+        default = "utils/api/API_KEY",
         type = str,
         help = "the location to load your OpenAI API Key"
     )
@@ -31,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--envs",
         nargs = "+",
-        help = "list of environment names, see the ./utilities/envs_mapping.txt for mapping between index and env",
+        help = "list of environment names, see the data/input/env/env_ids.json for mapping between index and env",
         default = [0],
         type = int
     )
@@ -44,8 +43,7 @@ if __name__ == '__main__':
         "--exp-src",
         nargs = "+",
         type = str,
-        help = "the starting experience read path",
-        default = ["start_exp.txt"]
+        help = "list of the starting experience read path, if it is less than the --envs, then we will use default one"
     )
     parser.add_argument(
         "--gpt",
@@ -63,7 +61,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--log",
         action = "store_true",
-        help = "print the logging informations by print()"
+        help = "if to print the logging informations by print()"
     )
     parser.add_argument(
         "--neg-memo",
@@ -84,7 +82,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--seed",
-        help = "random seed for reproducing results",
+        help = "random seed for reproducing results, so far only supports 20, 21, 22, 23, 24",
         default = 23,
         type = int
     )
@@ -100,22 +98,26 @@ if __name__ == '__main__':
         nargs = "+",
         type = float,
         default = [0.7],
-        help = "the list of temprature used by the OpenAI API"
+        help = "the list of temprature used by the OpenAI API, if it is less than the --envs, then we will use the first one throughout"
     )
     parser.add_argument(
         "--view",
         nargs = "+",
         type = int,
         default = [7],
-        help = "set the number of grid spaces visible in agent-view "
+        help = "set the number of grid spaces visible in agent-view, if it is less than the --envs, then we will use the first one throughout"
     )
     parser.add_argument(
         "--wandb",
         action = "store_true",
         help = "whether to use wandb to record experiments"
     )
+
     args = parser.parse_args()
     load_api_key(args.API_KEY)
     # Create the agent
     llm_agent = agent(args)
-    llm_agent.train()
+    if args.eval:
+        llm_agent.eval()
+    else:
+        llm_agent.train()

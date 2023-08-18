@@ -5,7 +5,7 @@ from utils.load_data import *
 
 def start_env(args, env_id):
     env: MiniGridEnv = gym.make(
-        id = env_ids[str(env_id)],
+        id = env_ids[str(args.envs[env_id])],
         render_mode = "rgb_array",
         agent_view_size = args.view[env_id],
         screen_size = args.screen

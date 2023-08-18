@@ -8,7 +8,7 @@ def get_front_obj(world_map, pos_x, pos_y, arrow):
     elif arrow == "Right/East":
         return int(world_map[0][pos_x][pos_y + 1])
     
-def get_front_col(env_id, world_map, pos_x, pos_y, arrow):
+def get_front_col(world_map, pos_x, pos_y, arrow):
     if arrow == "Up/North":
         return int(world_map[1][pos_x - 1][pos_y])
     elif arrow == "Down/South":
@@ -18,7 +18,7 @@ def get_front_col(env_id, world_map, pos_x, pos_y, arrow):
     elif arrow == "Right/East":
         return int(world_map[1][pos_x][pos_y + 1])
     
-def get_front_sta(env_id, world_map, pos_x, pos_y, arrow):
+def get_front_sta(world_map, pos_x, pos_y, arrow):
     if arrow == "Up/North":
         return int(world_map[2][pos_x - 1][pos_y])
     elif arrow == "Down/South":

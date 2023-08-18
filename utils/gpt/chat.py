@@ -33,9 +33,10 @@ def no_func_chat(model, msg, temp, lim, delay):
                 temperature = temp,
                 max_tokens = lim
             )
-            ans = rsp["choices"][0]["messages"]["content"]
+            ans = rsp["choices"][0]["message"]["content"]
             break
         except Exception as e:
+            print(f"get an error = {str(e)}")
             time.sleep(delay)
             delay *= 2
 
@@ -52,13 +53,27 @@ def func_chat(model, msg, fuc, temp, lim, delay):
                 temperature = temp,
                 max_tokens = lim
             )
-            ans = rsp["choices"][0]["messages"]["content"]
-            break
+            ans = rsp["choices"][0]["message"]
+            if ans.get("function_call"):
+                    fuc_l = {
+                        "choose_act": choose_act,
+                    }
+                    fuc_n = ans["function_call"]["name"]
+                    if fuc_n == "choose_act":
+                        fuc_c = fuc_l[fuc_n]
+                        fuc_args = json.loads(ans["function_call"]["arguments"])
+                        act = fuc_c(
+                            action = fuc_args.get("action")
+                        )
+                        break
         except Exception as e:
+            print(f"get an error = {str(e)}")
             time.sleep(delay)
             delay *= 2
-
-    return ans
+    
+    print(f"the returned act = {act}")
+    
+    return act
 
 def generate_action(args, desc_sys, desc_user_0, desc_assis, desc_user_1, desc_ans, reason_user_0, reason_ans, act_user_0, fuc_msg, fuc_desc, env_id):
     msg = [{"role": "system", "content": desc_sys}, 
@@ -81,23 +96,25 @@ def generate_action(args, desc_sys, desc_user_0, desc_assis, desc_user_1, desc_a
                         "description": fuc_desc
                     }
                 },
-                "required":["action"]
-            }}]
+                "required":["action"],
+            },
+        }
+    ]
     
     return func_chat(args.gpt[env_id], msg, fuc, args.temp[env_id], lim["action"], args.delay)
 
 def generate_desc(args, desc_sys, desc_user_0, desc_assis, desc_user_1, env_id):
     msg = [{"role": "system", "content": desc_sys}, {"role": "user", "content": desc_user_0}, {"role": "assistant", "content": desc_assis}, {"role": "user", "content":desc_user_1}]
-    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["desc"])
+    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["desc"], args.delay)
 
 def generate_reason(args, desc_sys, desc_user_0, desc_assis, desc_user_1, desc_ans, reason_user_0, env_id):
     msg = [{"role": "system", "content": desc_sys}, {"role": "user", "content": desc_user_0}, {"role": "assistant", "content": desc_assis}, {"role": "user", "content":desc_user_1}, {"role": "assistant", "content": desc_ans}, {"role": "user", "content": reason_user_0}]
-    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["reason"])
+    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["reason"], args.delay)
 
 def generate_n_exp(args, desc_sys, desc_user_0, desc_assis, desc_user_1, desc_ans, reason_user_0, reason_ans, n_exp_user_0, env_id):
     msg = [{"role": "system", "content": desc_sys}, {"role": "user", "content": desc_user_0}, {"role": "assistant", "content": desc_assis}, {"role": "user", "content":desc_user_1}, {"role": "assistant", "content": desc_ans}, {"role": "user", "content": reason_user_0}, {"role": "assistant", "content": reason_ans}, {"role": "user", "content": n_exp_user_0}]
-    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["n_exp"])
+    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["n_exp"], args.delay)
 
 def generate_s_exp(args, desc_sys, desc_user_0, desc_assis, desc_user_1, desc_ans, reason_user_0, reason_ans, n_exp_user_0, n_exp, s_exp_user_0, env_id):
     msg = [{"role": "system", "content": desc_sys}, {"role": "user", "content": desc_user_0}, {"role": "assistant", "content": desc_assis}, {"role": "user", "content":desc_user_1}, {"role": "assistant", "content": desc_ans}, {"role": "user", "content": reason_user_0}, {"role": "assistant", "content": reason_ans}, {"role": "user", "content": n_exp_user_0}, {"role": "assistant", "content": n_exp}, {"role": "user", "content": s_exp_user_0}]
-    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["s_exp"])
+    return no_func_chat(args.gpt[env_id], msg, args.temp[env_id], lim["s_exp"], args.delay)
