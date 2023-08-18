@@ -1,4 +1,5 @@
 import wandb
+import numpy as np
 from utils.log import get_path, write_log
 from utils.load_data import *
 from utils.exp import initialize_exp, train_exp
@@ -11,6 +12,7 @@ from utils.gpt.chat import *
 from utils.act.forward import *
 from utils.env import start_env, reset_env
 from utils.act.left_right import *
+from utils.count import *
 from PIL import Image
 import pandas as pd
 import os
@@ -33,7 +35,10 @@ class agent:
         self.rec_table_df.loc[len(self.rec_table_df)] = [str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]).replace(".", "")]
         self.world_map_table_df.loc[len(self.world_map_table_df)] = [str(self.world_map[0]).replace("'", ""), str(self.world_map[1]).replace("'", ""), str(self.world_map[2]).replace("'", ""), str(c_world_map).replace("'", "")]
 
-    def add_metric(self, ratio, length):
+    def add_length():
+        pass
+
+    def add_metric(self, ratio):
         if self.args.wandb:
             # Log the metrics
             metrics = {
@@ -41,8 +46,7 @@ class agent:
             "env_memo_ratio": ratio["env_memo"],
             "env_step_ratio": ratio["env_step"],
             "obj_view_ratio": ratio["obj_view"],
-            "obj_intr_ratio": ratio["obj_intr"],
-            "exp_length": length
+            "obj_intr_ratio": ratio["obj_intr"]
             }
             wandb.log(metrics)
         
@@ -86,12 +90,14 @@ class agent:
             self.past_actions.append(act)
             if self.terminated:
                 self.inv = 0
+                self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
                 # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
                 self.pos_x, self.pos_y, self.direction = self.pos_m[env_id]
                 # Initilize the environment
                 self.obs, _ = reset_env(self.env, self.args.seed)
+                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
+
                 front_obj = get_front_obj(env_id, self.world_map, self.pos_x, self.pos_y,self. arrow)
-                self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
                 # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
                 if front_obj == 8:
                     self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
@@ -101,155 +107,81 @@ class agent:
                     self.n_exp = "You are killed stepping towards this ball"
                 self.log(self.n_exp)
             else:
-                front_obj = get_front_obj(env_id, self.world_map, self.pos_x, self.pos_y,self. arrow)
-                front_sta = get_front_sta(env_id, self.world_map, self.pos_x, self.pos_y,self. arrow)
-
+                front_obj = get_front_obj(env_id, self.world_map, self.pos_x, self.pos_y, self.direction)
+                front_sta = get_front_sta(env_id, self.world_map, self.pos_x, self.pos_y, self.direction)
                 if front_obj == 1 or front_obj == 3:
-                    self.pos_x, self.pos_y = update_pos(pos_x, pos_y, arrow)
-
+                    self.act_forward()
                 elif front_obj == 4 and front_sta == 0:
-                    n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
-
-                else:
-                    n_pos_x, n_pos_y = pos_x, pos_y
-            write_log(args, save_path, f"\n*************************************************\n\nDoing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
-            world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
-            p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-            n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his, pos_x, pos_y, n_pos_x, n_pos_y, arrow, arrow)
-            c_exp = sum_exp(args, n_exp, exp, act_his)
-
-            exp = c_exp
-            obs = n_obs
-
-            pos_x = n_pos_x
-            pos_y = n_pos_y
+                    self.act_forward()
 
         elif act == "toggle": 
-            o_world_map = {}
-            o_world_map[env_id] = world_map[env_id].copy()
-            o_world_map[env_id][0] = world_map[env_id][0].copy()
-            o_world_map[env_id][1] = world_map[env_id][1].copy()
-            o_world_map[env_id][2] = world_map[env_id][2].copy()
-            front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-            if front_obj != 7:
-                n_obs, reward, terminated, truncated, _ = env.step(Actions.toggle)
-            else:
-                n_obs, reward, terminated, truncated, _ = obs, 0.0, False, False, _
-            act_his.append(act)
-            if terminated:
-                # For each new environment, the inventory is always 0
-                inv = 0
+            self.obs, _, self.terminated, _, _ = self.env.step(Actions.toggle)
+            self.past_actions.append(act)
+            if self.terminated:
+                self.inv = 0
+                self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
                 # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
-                n_pos_x, n_pos_y, n_arrow = pos_m[env_id]
+                self.pos_x, self.pos_y, self.direction = self.pos_m[env_id]
                 # Initilize the environment
-                obs, state = env.reset(seed=args.seed)
-                world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
-                # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-                n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
-                c_exp = sum_exp(args, n_exp, exp, act_his)
-                exp = c_exp
-                pos_x = n_pos_x
-                pos_y = n_pos_y
-                arrow = n_arrow
-                return
-            write_log(args, save_path, f"The front object being interacted with is {front_obj}")
-            obj_intr_rec[env_id][0][front_obj] += 1
-            _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-            n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, inv, act_his, pos_x, pos_y, pos_x, pos_y, arrow, arrow)
-            c_exp = sum_exp(args, n_exp, exp, act_his)
-
-            exp = c_exp
-            obs = n_obs
+                self.obs, _ = reset_env(self.env, self.args.seed)
+                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
+                self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                self.log(self.n_exp)
+            else:
+                _, _, _ = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
+                self.rec["obj_intr"]["toggle"][front_obj] += 1
 
         elif act == "drop off":
-            o_world_map = {}
-            o_world_map[env_id] = world_map[env_id].copy()
-            o_world_map[env_id][0] = world_map[env_id][0].copy()
-            o_world_map[env_id][1] = world_map[env_id][1].copy()
-            o_world_map[env_id][2] = world_map[env_id][2].copy()
-            n_obs, reward, terminated, truncated, _ = env.step(Actions.drop)
-            act_his.append(act)
-            if terminated:
-                # For each new environment, the inventory is always 0
-                inv = 0
+            self.n_obs, _, self.terminated, _, _ = self.env.step(Actions.drop)
+            self.past_actions.append(act)
+            if self.terminated:
+                self.inv = 0
+                self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
                 # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
-                n_pos_x, n_pos_y, n_arrow = pos_m[env_id]
+                self.pos_x, self.pos_y, self.direction = self.pos_m[env_id]
                 # Initilize the environment
-                obs, state = env.reset(seed=args.seed)
-                front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-                world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
-                # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-                n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
-                c_exp = sum_exp(args, n_exp, exp, act_his)
-                exp = c_exp
-                pos_x = n_pos_x
-                pos_y = n_pos_y
-                arrow = n_arrow
-                return 
+                self.obs, _ = reset_env(self.env, self.args.seed)
+                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
+                self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                self.log(self.n_exp)
             else:
+                _, _, _ = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
                 if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
-                    n_inv = 0
-                else:
-                    n_inv = inv
-            front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-            write_log(args, save_path, f"The front object being interacted with is {front_obj}")
-            obj_intr_rec[env_id][1][front_obj] += 1
-            _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-            n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his, pos_x, pos_y, pos_x, pos_y, arrow, arrow)
-            c_exp = sum_exp(args, n_exp, exp, act_his)
-
-            exp = c_exp
-            obs = n_obs
-            inv = n_inv
+                    self.inv = 0
+                self.obs = self.n_obs.copy()
+                self.rec["obj_intr"]["drop off"][front_obj] += 1
             
         elif act == "pick up":
-            o_world_map = {}
-            o_world_map[env_id] = world_map[env_id].copy()
-            o_world_map[env_id][0] = world_map[env_id][0].copy()
-            o_world_map[env_id][1] = world_map[env_id][1].copy()
-            o_world_map[env_id][2] = world_map[env_id][2].copy()
-            n_obs, reward, terminated, truncated, _ = env.step(Actions.pickup)
-            act_his.append(act)
-            if terminated:
-                # For each new environment, the inventory is always 0
-                inv = 0
+            self.n_obs, _, self.terminated, _, _ = self.env.step(Actions.drop)
+            self.past_actions.append(act)
+            if self.terminated:
+                self.inv = 0
+                self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
                 # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
-                n_pos_x, n_pos_y, n_arrow = pos_m[env_id]
+                self.pos_x, self.pos_y, self.direction = self.pos_m[env_id]
                 # Initilize the environment
-                obs, state = env.reset(seed=args.seed)
-                front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-                world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
-                # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-                n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
-                c_exp = sum_exp(args, n_exp, exp, act_his)
-                exp = c_exp
-                pos_x = n_pos_x
-                pos_y = n_pos_y
-                arrow = n_arrow
-                return 
+                self.obs, _ = reset_env(self.env, self.args.seed)
+                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
+                self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                self.log(self.n_exp)
             else:
+                _, _, _ = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
                 if not np.array_equal(n_obs['image'].transpose(1,0,2), obs['image'].transpose(1,0,2)):
-                    n_inv = get_n_inv(args, n_obs, obs)
-                else:
-                    n_inv = inv
-            front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-            write_log(args, save_path, f"The front object being interacted with is {front_obj}")
-            obj_intr_rec[env_id][2][front_obj] += 1
-            _, _, _ = update_world_map_view_step_memo_rec(args, env_id, world_map, pos_x, pos_y, arrow, n_obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
-            n_exp = get_exp(args, env_id, world_map, inv, act, obs, n_obs, o_world_map, n_inv, act_his, pos_x, pos_y, pos_x, pos_y, arrow, arrow)
-            c_exp = sum_exp(args, n_exp, exp, act_his)
-
-            exp = c_exp
-            obs = n_obs
-            inv = n_inv
+                    front_obj = get_front_obj(env_id, self.world_map, self.pos_x, self.pos_y, self.direction)
+                    self.inv = front_obj
+                self.obs = self.n_obs.copy()
+                self.rec["obj_intr"]["pick up"][front_obj] += 1
 
         # We refresh the action history every args.refresh run to avoid too large action space
-        if len(act_his) >= args.memo:
-            act_his = act_his[1:]
+        if len(self.past_actions) >= self.args.memo:
+            self.past_actions = self.past_actions[1:]
 
+    def act_forward(self):
+        self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
+        self.pos_x, self.pos_y = update_pos(self.pos_x, self.pos_y, self.direction)
+        self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
+
+    
     def get_action(self, env_id):
         self.action = generate_action(self.args, *self.log_action(), env_id)
 
@@ -260,6 +192,66 @@ class agent:
         
         self.log(self.desc)
     
+    def get_length(self, env_id):
+        sum = 0
+        sum += tokens_count(train_msg["desc_sys"])
+        sum += tokens_count(self.desc_user_1)
+        sum += tokens_count(train_msg["desc_user_0"])
+        sum += tokens_count(train_msg["desc_assis"])
+        sum += tokens_count(self.desc)
+        sum += tokens_count(self.reason_user_0)
+        sum += tokens_count(self.reason)
+        sum += tokens_count(self.n_exp_user_0)
+        sum += tokens_count(self.n_exp)
+        sum += tokens_count(self.s_exp_user_0)
+        return sum, tokens_count(self.desc_user_1), tokens_count(self.desc), tokens_count(self.reason_user_0), tokens_count(self.reason), tokens_count(self.n_exp_user_0), tokens_count(self.n_exp), tokens_count(self.s_exp_user_0)
+
+    def get_metrics(self):
+        env_view_r = np.count_nonzero(self.rec["env_view"]) / np.size(self.rec["env_view"]) * 100
+        env_view_r_s = "{:.3f}%".format(env_view_r)
+
+        env_step_r = np.count_nonzero(self.rec["env_step"]) / np.size(self.rec["env_step"]) * 100
+        env_step_r_s = "{:.3f}%".format(env_step_r)
+
+        env_memo_r = np.count_nonzero(self.rec["env_memo"]) / np.size(self.rec["env_memo"]) * 100
+        env_memo_r_s = "{:.3f}%".format(env_memo_r)
+
+        toggle_r = np.count_nonzero(self.rec["obj_intr"]["toggle"]) / np.size(self.rec["obj_intr"]["toggle"]) * 100
+        toggle_r_s = "{:.3f}%".format(toggle_r)
+        
+        pickup_r = np.count_nonzero(self.rec["obj_intr"]["pick up"]) / np.size(self.rec["obj_intr"]["pick up"]) * 100
+        pickup_r_s = "{:.3f}%".format(pickup_r)
+        
+        dropoff_r = np.count_nonzero(self.rec["obj_intr"]["drop off"]) / np.size(self.rec["obj_intr"]["drop off"]) * 100
+        dropoff_r_s = "{:.3f}%".format(dropoff_r)
+
+        obj_view_r = np.count_nonzero(self.rec["obj_view"]) / np.size(self.rec["obj_view"]) * 100
+        obj_view_r_s = "{:.3f}%".format(obj_view_r)
+
+        ratio = {}
+
+        ratio["env_view"] = env_view_r
+        ratio["env_step"] = env_step_r
+        ratio["env_memo"] = env_memo_r
+        ratio["obj_view"] = obj_view_r
+        ratio["toggle"] = toggle_r
+        ratio["pick up"] = pickup_r
+        ratio["drop off"] = dropoff_r
+
+        ratio_s = {}
+
+        ratio_s["env_view"] = env_view_r_s
+        ratio_s["env_step"] = env_step_r_s
+        ratio_s["env_memo"] = env_memo_r_s
+        ratio_s["obj_view"] = obj_view_r_s
+        ratio_s["toggle"] = toggle_r_s
+        ratio_s["pick up"] = pickup_r_s
+        ratio_s["drop off"] = dropoff_r_s
+
+        self.log_metrics(ratio_s)
+
+        return ratio
+
     def get_n_exp(self, env_id):
         self.n_exp = generate_n_exp(self.args, *self.log_n_exp(env_id), env_id)
 
@@ -292,6 +284,11 @@ class agent:
 
         return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1
     
+    def log_metrics(self, ratio_s):
+        rpt_msg_f = rpt_msg["rpt_msg"]
+        rpt_msg_s = rpt_msg_f.format(ratio_s["env_view"], ratio_s["env_step"], ratio_s["env_memo"], ratio_s["obj_view"], ratio_s["toggle"], ratio_s["pick up"], ratio_s["drop off"])
+        self.log(rpt_msg_s)
+
     def log_n_exp(self, env_id):
         self.n_exp_user_0 = fill_n_exp_user_0(self.act_l, env_id, self.pos_x, self.pos_y, self.direction, self.world_map, self.inv, self.past_actions, lim["n_exp"])
 
@@ -309,14 +306,6 @@ class agent:
 
         self.log(self.s_exp_user_0)
         return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0, self.reason, self.n_exp_user_0, self.n_exp, self.s_exp_user_0
-
-    def old_world_map(self):
-        o_world_map = {}
-        o_world_map = self.world_map.copy()
-        o_world_map[0] = self.world_map[0].copy()
-        o_world_map[1] = self.world_map[1].copy()
-        o_world_map[2] = self.world_map[2].copy()
-        return o_world_map
 
     def save_table(self, env_id):
          # Log datas to the wandb
@@ -380,13 +369,9 @@ class agent:
             self.create_table()
 
             for step in range(self.args.steps[env_id]):
-                update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
                 self.get_desc(env_id)
                 self.get_reason(env_id)
                 self.get_action(env_id)
-
-                self.o_world_map = self.old_world_map()
-
                 if isinstance(self.action, list):
                     img_l = []
                     metric_l = []
@@ -394,7 +379,7 @@ class agent:
                     for act_int in self.action:
                         img_l.append(self.save_image(env_id, step))
                         metric_l.append(self.get_metrics())
-                        act =int_act[str(act_int)]
+                        act = int_act[str(act_int)]
                         self.act_l.append(act)
                         # World map updated inside the execute_action
                         self.execute_action(act, env_id)
@@ -402,27 +387,36 @@ class agent:
                             step += 1
                             break
                         step += 1
+                        # TODO write the exp, desc into some files, count the length of experience, desc, reason, etc. 
+                        # TODO wandb table
+                        # The action is integer, not string at the moment
                     if not self.terminated:
                         self.get_n_exp(env_id)
                         self.get_s_exp(env_id)
-                        self.get_length()
                     else:
+                        self.terminated = False
                         self.get_s_exp(env_id)
+                        
                     for i in range(len(self.action)):
-                        self.add_data(img_l[i], self.desc_user_1, self.desc, self.reason, str(self.action[i]), self.n_exp, self.s_exp)
-                        self.add_metric(metric_l[i], self.length)
-
+                        self.add_data(img_l[i], self.desc_user_1, self.desc, self.reason, str(self.act_l[i]), self.n_exp, self.s_exp)
+                        self.add_metric(*metric_l[i])
+                    self.add_length(*self.get_length())
                 elif isinstance(self.action, int):
-                    act_s = act_obj[str(act)]
+                    self.act_l = []
+                    act = int_act[str(self.action)]
+                    self.act_l.append(act)
                     img = self.save_image(env_id, step)
-                    self.execute_action(act_s)
-                    self.get_metrics()
-                    self.get_length
-                    self.get_experience()
-                    self.summarize_experience()
-                    self.add_data(img, self.desc_user_1, self.desc, self.reason, str(self.action), self.n_exp, self.s_exp)
-                    self.add_metric(self.metric, self.length)
-
+                    metrics = self.get_metrics()
+                    self.execute_action(act, env_id)
+                    if not self.terminated:
+                        self.get_n_exp(env_id)
+                        self.get_s_exp(env_id)
+                    else:
+                        self.terminated = False
+                        self.get_s_exp(env_id)
+                    self.add_data(img, self.desc_user_1, self.desc, self.reason, act, self.n_exp, self.s_exp)
+                    self.add_metric(*metrics)
+                    self.add_length(*self.get_length())
             self.env_close()
             self.save_table()
 

@@ -29,6 +29,8 @@ train_msg = load_json(r"data/input/msg/train_msg.json")
 
 train_rec = load_json(r"data/input/msg/train_rec.json")
 
+rpt_msg = load_json(r"data/input/msg/rpt_msg.json")
+
 eval_msg = load_json(r"data/input/rec/eval_msg.json")
 
 eval_rec = load_json(r"data/input/rec/eval_rec.json")
