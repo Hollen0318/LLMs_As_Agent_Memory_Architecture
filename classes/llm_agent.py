@@ -4,12 +4,13 @@ from utils.load_data import *
 from utils.exp import initialize_exp, train_exp
 from utils.fill import *
 from utils.skip import skip
-from utils.track import get_track, update_world_map
+from utils.track import get_track, update_world_map, restore_world_map
 from utils.alert import train_examine
 from datetime import datetime
 from utils.gpt.chat import *
+from utils.act.forward import *
 from utils.env import start_env, reset_env
-from utils.act.act_control import *
+from utils.act.left_right import *
 from PIL import Image
 import pandas as pd
 import os
@@ -84,37 +85,31 @@ class agent:
             self.obs, _, self.terminated, _, _ = self.env.step(Actions.forward)
             self.past_actions.append(act)
             if self.terminated:
-                inv = 0
+                self.inv = 0
                 # Get the respawn position for seed = 23 only pos_x and pos_y are integer indicating the coordinates, arrow is string like a Right
                 self.pos_x, self.pos_y, self.direction = self.pos_m[env_id]
                 # Initilize the environment
                 self.obs, _ = reset_env(self.env, self.args.seed)
-                front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-                write_log(args, save_path, f"\n*************************************************\n\nDoing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
-                world_map[env_id][0][pos_x][pos_y], world_map[env_id][1][pos_x][pos_y], world_map[env_id][2][pos_x][pos_y] = p_obj, p_col, p_sta
+                front_obj = get_front_obj(env_id, self.world_map, self.pos_x, self.pos_y,self. arrow)
+                self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
                 # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
-                p_obj, p_col, p_sta = update_world_map_view_step_memo_rec(args, env_id, world_map, n_pos_x, n_pos_y, n_arrow, obs, env_step_rec, env_memo_rec, env_view_rec, obj_view_rec)
                 if front_obj == 8:
-                    n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
+                    self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                 elif front_obj == 9:
-                    n_exp = "You touched a lava and dead, respawn at the start place, try again!"
+                    self.n_exp = "You touched a lava and dead, respawn at the start place, try again!"
                 elif front_obj == 6:
-                    n_exp = "You are killed stepping towards this ball"
-                c_exp = sum_exp(args, n_exp, exp, act_his)
-                exp = c_exp
-                pos_x = n_pos_x
-                pos_y = n_pos_y
-                arrow = n_arrow
-                return 
+                    self.n_exp = "You are killed stepping towards this ball"
+                self.log(self.n_exp)
             else:
-                front_obj = get_front_obj(args, env_id, world_map, pos_x, pos_y, arrow)
-                front_col = get_front_col(args, env_id, world_map, pos_x, pos_y, arrow)
-                front_sta = get_front_sta(args, env_id, world_map, pos_x, pos_y, arrow)
+                front_obj = get_front_obj(env_id, self.world_map, self.pos_x, self.pos_y,self. arrow)
+                front_sta = get_front_sta(env_id, self.world_map, self.pos_x, self.pos_y,self. arrow)
 
                 if front_obj == 1 or front_obj == 3:
-                    n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
+                    self.pos_x, self.pos_y = update_pos(pos_x, pos_y, arrow)
+
                 elif front_obj == 4 and front_sta == 0:
                     n_pos_x, n_pos_y = update_pos(pos_x, pos_y, arrow)
+
                 else:
                     n_pos_x, n_pos_y = pos_x, pos_y
             write_log(args, save_path, f"\n*************************************************\n\nDoing forward, the p_obj and p_col, p_sta is {p_obj} {p_col} {p_sta } *************************************\n")
@@ -385,7 +380,7 @@ class agent:
             self.create_table()
 
             for step in range(self.args.steps[env_id]):
-                self.update_world_map(env_id)
+                update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec)
                 self.get_desc(env_id)
                 self.get_reason(env_id)
                 self.get_action(env_id)
@@ -404,11 +399,15 @@ class agent:
                         # World map updated inside the execute_action
                         self.execute_action(act, env_id)
                         if self.terminated:
+                            step += 1
                             break
                         step += 1
-                    self.get_n_exp(env_id)
-                    self.get_s_exp(env_id)
-                    self.get_length()
+                    if not self.terminated:
+                        self.get_n_exp(env_id)
+                        self.get_s_exp(env_id)
+                        self.get_length()
+                    else:
+                        self.get_s_exp(env_id)
                     for i in range(len(self.action)):
                         self.add_data(img_l[i], self.desc_user_1, self.desc, self.reason, str(self.action[i]), self.n_exp, self.s_exp)
                         self.add_metric(metric_l[i], self.length)

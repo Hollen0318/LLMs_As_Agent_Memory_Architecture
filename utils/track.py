@@ -165,3 +165,7 @@ def memo_minus(args, env_memo_rec):
     else:
         env_memo_rec = np.where(env_memo_rec > 0, env_memo_rec - 1, env_memo_rec)
     return env_memo_rec
+
+def restore_world_map(world_map, pos_x, pos_y, p_obj, p_col, p_sta):
+    world_map[0][pos_x][pos_y], world_map[1][pos_x][pos_y], world_map[2][pos_x][pos_y] = p_obj, p_col, p_sta
+    return world_map
