@@ -10,7 +10,7 @@ def get_path(args, env_id):
     # we create single folder for each environment or together
     # then inside we use parameter setting as folder name
     # then we use the datetime
-    root_dir = "data/output"
+    root_dir = "output"
     seed_dir = "seed_" + str(args.seed)
     if args.eval:
         mode_dir = "eval"

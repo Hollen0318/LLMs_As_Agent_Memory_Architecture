@@ -7,6 +7,6 @@
     "act_user_0": "Convert above reason of choices into a list of integers by calling function \"choose_act\" with the list of integers as parameter",
     "fuc_msg": "Function to convert the reason of choices into a list of integers with list of integers as parameter",
     "fuc_desc": "list of integers corresponding to the action",
-    "n_exp_user_0":"You choose to do {}, and new observation is: \n0. World ID is # {} and your position is ({}, {}), facing {}. \n1. World Map: {} \n2. Inventory: {} \n3. Past actions: {} \n, what new findings you obtain from your actions?\nLimit it to be less than {} tokens",
+    "n_exp_user_0":"You choose to do {}, and new observation is: \n0. World ID is # {} and your position is ({}, {}), facing {}. \n1. World Map: \n{} \n2. Inventory: {} \n3. Past actions: {} \nWhat new findings you obtain from your actions?\nLimit it to be less than {} tokens",
     "s_exp_user_0": "Compare your new experience and previous experience, summarize them to help yourself continue explore the world as much as you can\nLimit it to be less than {} tokens."
 }

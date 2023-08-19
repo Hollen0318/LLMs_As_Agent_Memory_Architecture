@@ -397,6 +397,7 @@ class agent:
             self.past_actions = []
             # The self.world_map, self.rec stores the world map for this particular env
             self.world_map, self.rec = get_track(self.args.envs[env_id], env_sizes[str(self.args.seed)])
+            
             if skip(env_id):
                 continue
             
