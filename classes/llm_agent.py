@@ -29,16 +29,13 @@ class agent:
         self.world_map = restore_world_map(self.world_map, self.pos_x, self.pos_y, self.p_obj, self.p_col, self.p_sta)
         self.pos_x, self.pos_y = update_pos(self.pos_x, self.pos_y, self.direction)
         self.p_obj, self.p_col, self.p_sta, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
-
     
     def add_data(self, img, obs, desc, reason, act, n_exp, c_exp, c_world_map):
         if self.args.wandb:
             self.scn_table.add_data(wandb.Image(img), obs, desc, reason, act, n_exp, c_exp)
-            self.rec_table.add_data(str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]["toggle"]).replace(".", ""), str(self.rec["obj_intr"]["pick up"]).replace(".", ""), str(self.rec["obj_intr"]["drop off"]).replace(".", ""))
             self.world_map_table.add_data(str(self.world_map[0]).replace("'", ""), str(self.world_map[1]).replace("'", ""), str(self.world_map[2]).replace("'", ""), str(c_world_map).replace("'", ""))
 
         self.scn_table_df.loc[len(self.scn_table_df)] = ["Image", obs, desc, reason, act, n_exp, c_exp]
-        self.rec_table_df.loc[len(self.rec_table_df)] = [str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]["toggle"]).replace(".", ""), str(self.rec["obj_intr"]["pick up"]).replace(".", ""), str(self.rec["obj_intr"]["drop off"]).replace(".", "")]
         self.world_map_table_df.loc[len(self.world_map_table_df)] = [str(self.world_map[0]).replace("'", ""), str(self.world_map[1]).replace("'", ""), str(self.world_map[2]).replace("'", ""), str(c_world_map).replace("'", "")]
 
     def add_length(self, tokens_sum, length, env_id):
@@ -77,6 +74,11 @@ class agent:
             wandb.log(metrics)
         
         self.metrics_table_df.loc[len(self.metrics_table_df)] = [ratio["env_view"], ratio["env_step"], ratio["env_memo"], ratio["obj_view"], ratio["toggle"], ratio["pick up"], ratio["drop off"]]
+
+    def add_rec(self):
+        if self.args.wandb:
+            self.rec_table.add_data(str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]["toggle"]).replace(".", ""), str(self.rec["obj_intr"]["pick up"]).replace(".", ""), str(self.rec["obj_intr"]["drop off"]).replace(".", ""))
+        self.rec_table_df.loc[len(self.rec_table_df)] = [str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]["toggle"]).replace(".", ""), str(self.rec["obj_intr"]["pick up"]).replace(".", ""), str(self.rec["obj_intr"]["drop off"]).replace(".", "")]
 
     def create_table(self):
         if self.args.wandb:
@@ -190,14 +192,14 @@ class agent:
                 self.log(self.n_exp)
             else:
                 _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
+                front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 if not np.array_equal(self.n_obs['image'].transpose(1,0,2), self.obs['image'].transpose(1,0,2)):
                     self.inv = 0
-                front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 self.obs = self.n_obs.copy()
                 self.rec["obj_intr"]["drop off"][front_obj] += 1
             
         elif act == "pick up":
-            self.n_obs, _, self.terminated, _, _ = self.env.step(Actions.drop)
+            self.n_obs, _, self.terminated, _, _ = self.env.step(Actions.pickup)
             self.past_actions.append(act)
             if self.terminated:
                 self.inv = 0
@@ -211,16 +213,16 @@ class agent:
                 self.log(self.n_exp)
             else:
                 _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
+                front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 if not np.array_equal(self.n_obs['image'].transpose(1,0,2), self.obs['image'].transpose(1,0,2)):
                     self.inv = front_obj
-                front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 self.obs = self.n_obs.copy()
                 self.rec["obj_intr"]["pick up"][front_obj] += 1
 
         # We refresh the action history every args.refresh run to avoid too large action space
         if len(self.past_actions) >= lim["memo"]:
             self.past_actions = self.past_actions[1:]
-
+        self.add_rec()
 
     def get_action(self, env_id):
         self.action = generate_action(self.args, *self.log_action(), env_id)
@@ -253,7 +255,7 @@ class agent:
         env_step_r = np.count_nonzero(self.rec["env_step"]) / np.size(self.rec["env_step"]) * 100
         env_step_r_s = "{:.3f}%".format(env_step_r)
 
-        env_memo_r = np.count_nonzero(self.rec["env_memo"]) / np.size(self.rec["env_memo"]) * 100
+        env_memo_r = np.sum(self.rec["env_memo"] > 0) / np.size(self.rec["env_memo"]) * 100
         env_memo_r_s = "{:.3f}%".format(env_memo_r)
 
         toggle_r = np.count_nonzero(self.rec["obj_intr"]["toggle"]) / np.size(self.rec["obj_intr"]["toggle"]) * 100
@@ -409,8 +411,8 @@ class agent:
             self.obs, _ = reset_env(self.env, self.args.seed)
             self.terminated = False
             self.p_obj, self.p_col, self.p_sta, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
-
             self.create_table()
+            self.add_rec()
 
             for step in range(self.args.steps[env_id]):
                 self.get_desc(env_id)

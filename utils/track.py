@@ -33,8 +33,6 @@ def get_track(id, env_sizes):
 
 
 def update_world_map(args, world_map, pos_x, pos_y, direction, obs, rec, env_id):
-    # With the new obs, we should first update the env_memo_rec, as it will determine which parts of world map will show
-    p_obj, p_col, p_sta = world_map[0][pos_x][pos_y], world_map[1][pos_x][pos_y], world_map[2][pos_x][pos_y]
     image = obs['image'].transpose(1,0,2)
     env_step_rec, env_memo_rec, env_view_rec, obj_view_rec = rec["env_step"], rec["env_memo"], rec["env_view"], rec["obj_view"]
     # 0. Deduct the env_memo_rec by 1 unless 0
@@ -127,6 +125,8 @@ def update_world_map(args, world_map, pos_x, pos_y, direction, obs, rec, env_id)
                     world_map[1][row][col] = str(col_name)
                     world_map[2][row][col] = str(sta_name)
                 obj_view_rec[obj_name] += 1
+    # With the new obs, we should first update the env_memo_rec, as it will determine which parts of world map will show
+    p_obj, p_col, p_sta = world_map[0][pos_x][pos_y], world_map[1][pos_x][pos_y], world_map[2][pos_x][pos_y]
     # We update all the positions to -, and return the last position so can be used in the experience comparison
     world_map[0][pos_x][pos_y] = "Yourself"
     world_map[1][pos_x][pos_y] = "Yourself"
@@ -162,7 +162,7 @@ def memo_add(args, env_memo_rec, row, col):
 
 def memo_minus(args, env_memo_rec):
     if args.neg_memo:
-        env_memo_rec -= 1
+        env_memo_rec = np.where(env_memo_rec > - lim["memo"], env_memo_rec - 1, env_memo_rec)
     else:
         env_memo_rec = np.where(env_memo_rec > 0, env_memo_rec - 1, env_memo_rec)
     return env_memo_rec
