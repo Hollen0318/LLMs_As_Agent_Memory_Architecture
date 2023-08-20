@@ -80,7 +80,7 @@ if __name__ == '__main__':
         scn_table_n = f"scn_table_env_{str(i)}.csv"
         rec_table_n = f"rec_table_env_{str(i)}.csv"
         metrics_table_n = f"metrics_env_{str(i)}.csv"
-        length_table_n = f"length_table_"
+        length_table_n = f"length_table_env_{str(i)}.csv"
         world_map_table_n = f"world_map_table_env_{str(i)}.csv"
         # Image,Message,Reason,Action,N_exp,C_exp
         scn_table_df = pd.read_csv(os.path.join(save_path, scn_table_n))
@@ -90,6 +90,7 @@ if __name__ == '__main__':
         metrics_table_df = pd.read_csv(os.path.join(save_path, metrics_table_n))
         # World_Map_Object,World_Map_Color,World_Map_Status
         world_map_table_df = pd.read_csv(os.path.join(save_path, world_map_table_n))
+        # Sum, desc_sys, desc_user_0, desc_assis, desc_user_1
 
         action = "start"
         image_n = f"env_{str(i)}_action_0_{action}.png"

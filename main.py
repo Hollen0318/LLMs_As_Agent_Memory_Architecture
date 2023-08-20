@@ -119,6 +119,7 @@ if __name__ == '__main__':
         help = "whether to use wandb to record experiments"
     )
 
+try:
     args = parser.parse_args()
     load_api_key(args.API_KEY)
     # Create the agent
@@ -127,3 +128,10 @@ if __name__ == '__main__':
         llm_agent.eval()
     else:
         llm_agent.train()
+    
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+finally:
+    for env_id in args.envs:
+        llm_agent.save_table(env_id)  # This will always be executed

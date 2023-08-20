@@ -152,7 +152,6 @@ class agent:
                     self.n_exp = "You are killed stepping towards this ball"
                 self.log(self.n_exp)
             else:
-                self.p_obj, self.p_col, self.p_sta, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
                 front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 front_sta = get_front_sta(self.world_map, self.pos_x, self.pos_y, self.direction)
                 if front_obj == 1 or front_obj == 3:
@@ -365,10 +364,11 @@ class agent:
         self.length_table_df.to_csv(os.path.join(self.save_path, f'length_table_env_{env_id}.csv'), index=True)
 
 
-    def save_image(self, env_id, step):
+    def save_image(self, env_id, step, act):
         img_array = self.env.render()
         img = Image.fromarray(img_array)
-        img.save(os.path.join(self.save_path, f"env_{env_id}_{step}.png"))
+        dir_s = self.direction.replace("/", "_")
+        img.save(os.path.join(self.save_path, f"env_{env_id}_{step}_{act}_x_{self.pos_x}_y_{self.pos_y}_d_{dir_s}.png"))
         return img
 
     def save_wandb(self):
@@ -424,9 +424,9 @@ class agent:
                     metric_l = []
                     self.act_l = []
                     for act_int in self.action:
-                        img_l.append(self.save_image(self.args.envs[env_id], act_index))
                         metric_l.append(self.get_metrics())
                         act = int_act[str(act_int)]
+                        img_l.append(self.save_image(self.args.envs[env_id], act_index, act))
                         self.act_l.append(act)
                         # World map updated inside the execute_action
                         self.execute_action(act, self.args.envs[env_id])
@@ -453,7 +453,7 @@ class agent:
                     self.act_l = []
                     act = int_act[str(self.action)]
                     self.act_l.append(act)
-                    img = self.save_image(self.args.envs[env_id], act_index)
+                    img = self.save_image(self.args.envs[env_id], act_index, act)
                     metrics = self.get_metrics()
                     self.execute_action(act, self.args.envs[env_id])
                     if not self.terminated:
