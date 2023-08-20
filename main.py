@@ -17,6 +17,12 @@ if __name__ == '__main__':
         help = "the location to load your OpenAI API Key"
     )
     parser.add_argument(
+        "--bound",
+        type = int,
+        help = "the bound of memory both in forget and remember",
+        default = 2
+    )
+    parser.add_argument(
         "--cross",
         action = "store_true",
         help = "whether will agent bring experience from the past environment or they will refresh their experiences once enter new environment during training"

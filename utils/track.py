@@ -158,11 +158,15 @@ def memo_add(args, env_memo_rec, row, col):
         env_memo_rec[row][col] += lim["memo"]
     else:
         env_memo_rec[row][col] = lim["memo"]
+
+    # Use np.where to replace values exceeding 30 with 30
+    env_memo_rec = np.where(env_memo_rec > args.bound * lim["memo"], 2 * lim["memo"], env_memo_rec)
+
     return env_memo_rec
 
 def memo_minus(args, env_memo_rec):
     if args.neg_memo:
-        env_memo_rec = np.where(env_memo_rec > - lim["memo"], env_memo_rec - 1, env_memo_rec)
+        env_memo_rec = np.where(env_memo_rec > -1 * args.bound * lim["memo"], env_memo_rec - 1, env_memo_rec)
     else:
         env_memo_rec = np.where(env_memo_rec > 0, env_memo_rec - 1, env_memo_rec)
     return env_memo_rec
