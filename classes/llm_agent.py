@@ -140,7 +140,7 @@ class agent:
                 self.pos_x, self.pos_y, self.direction = self.pos_m[str(env_id)]
                 # Initilize the environment
                 self.obs, _ = reset_env(self.env, self.args.seed)
-                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
+                self.p_obj, self.p_col, self.p_sta, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
 
                 front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y,self. arrow)
                 # We update the world map, environment view, step, memo and object view to be consistent with the environment obs.
@@ -152,6 +152,7 @@ class agent:
                     self.n_exp = "You are killed stepping towards this ball"
                 self.log(self.n_exp)
             else:
+                self.p_obj, self.p_col, self.p_sta, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
                 front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 front_sta = get_front_sta(self.world_map, self.pos_x, self.pos_y, self.direction)
                 if front_obj == 1 or front_obj == 3:
@@ -358,7 +359,7 @@ class agent:
 
         # Save to CSV
         self.scn_table_df.to_csv(os.path.join(self.save_path, f'scn_table_env_{env_id}.csv'), index=True)
-        self.rec_table_df.to_csv(os.path.join(self.save_path, f'env_table_env_{env_id}.csv'), index=True)
+        self.rec_table_df.to_csv(os.path.join(self.save_path, f'rec_table_env_{env_id}.csv'), index=True)
         self.world_map_table_df.to_csv(os.path.join(self.save_path, f'world_map_table_env_{env_id}.csv'), index=True)
         self.metrics_table_df.to_csv(os.path.join(self.save_path, f'metrics_table_env_{env_id}.csv'), index=True)
         self.length_table_df.to_csv(os.path.join(self.save_path, f'length_table_env_{env_id}.csv'), index=True)
@@ -413,7 +414,7 @@ class agent:
             self.p_obj, self.p_col, self.p_sta, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
             self.create_table()
             self.add_rec()
-
+            act_index = 0
             for step in range(self.args.steps[env_id]):
                 self.get_desc(env_id)
                 self.get_reason(env_id)
@@ -423,7 +424,7 @@ class agent:
                     metric_l = []
                     self.act_l = []
                     for act_int in self.action:
-                        img_l.append(self.save_image(self.args.envs[env_id], step))
+                        img_l.append(self.save_image(self.args.envs[env_id], act_index))
                         metric_l.append(self.get_metrics())
                         act = int_act[str(act_int)]
                         self.act_l.append(act)
@@ -436,6 +437,7 @@ class agent:
                         # TODO write the exp, desc into some files, count the length of experience, desc, reason, etc. 
                         # TODO wandb table
                         # The action is integer, not string at the moment
+                        act_index += 1
                     if not self.terminated:
                         self.get_n_exp(env_id)
                         self.get_s_exp(env_id)
@@ -451,7 +453,7 @@ class agent:
                     self.act_l = []
                     act = int_act[str(self.action)]
                     self.act_l.append(act)
-                    img = self.save_image(self.args.envs[env_id], step)
+                    img = self.save_image(self.args.envs[env_id], act_index)
                     metrics = self.get_metrics()
                     self.execute_action(act, self.args.envs[env_id])
                     if not self.terminated:
@@ -463,6 +465,7 @@ class agent:
                     self.add_data(img, self.desc_user_1, self.desc, self.reason, act, self.n_exp, self.exp, compose_world_map(self.world_map))
                     self.add_metric(metrics, env_id)
                     self.add_length(*self.get_length(), self.args.envs[env_id])
+                    act_index += 1
             self.env_close(env_id)
             self.save_table(env_id)
 

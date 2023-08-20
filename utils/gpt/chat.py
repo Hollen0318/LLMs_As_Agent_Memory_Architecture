@@ -71,8 +71,6 @@ def func_chat(model, msg, fuc, temp, lim, delay):
             time.sleep(delay)
             delay *= 2
     
-    print(f"the returned act = {act}")
-    
     return act
 
 def generate_action(args, desc_sys, desc_user_0, desc_assis, desc_user_1, desc_ans, reason_user_0, reason_ans, act_user_0, fuc_msg, fuc_desc, env_id):
