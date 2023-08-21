@@ -104,18 +104,8 @@ class agent:
     def env_close(self, env_id):
         self.env.close()
         # Log datas to the wandb
-        if self.args.wandb:
-            wandb.log({f"Table/Screenshot Table for Environment #{env_id}": self.scn_table})
-            wandb.log({f"Table/Record Table for Environment #{env_id}": self.rec_table})
-            wandb.log({f"Table/World Map for Environment #{env_id}": self.world_map_table})
-
-        # Save to CSV
-        self.scn_table_df.to_csv(os.path.join(self.save_path, f'scn_table_env_{env_id}.csv'), index = True)
-        self.rec_table_df.to_csv(os.path.join(self.save_path, f'rec_table_env_{env_id}.csv'), index = True)
-        self.world_map_table_df.to_csv(os.path.join(self.save_path, f'world_map_table_env_{env_id}.csv'), index = True)
-        self.metrics_table_df.to_csv(os.path.join(self.save_path, f'metrics_env_{env_id}.csv'), index = True)
-        self.length_table_df.to_csv(os.path.join(self.save_path, f"length_table_env_{env_id}.csv"), index = True)
-
+        self.save_table(env_id)
+    
     def execute_action(self, act, env_id):
         if act == "left":
             # We update the world map, env view, env memo, obj_view, act history, arrow
@@ -173,8 +163,8 @@ class agent:
                 self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                 self.log(self.n_exp)
             else:
-                _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
                 front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
+                _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
                 self.rec["obj_intr"]["toggle"][front_obj] += 1
 
         elif act == "drop off":
@@ -187,16 +177,16 @@ class agent:
                 self.pos_x, self.pos_y, self.direction = self.pos_m[str(env_id)]
                 # Initilize the environment
                 self.obs, _ = reset_env(self.env, self.args.seed)
-                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
+                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.n_obs, self.rec, env_id)
                 self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                 self.log(self.n_exp)
             else:
-                _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
                 front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 if not np.array_equal(self.n_obs['image'].transpose(1,0,2), self.obs['image'].transpose(1,0,2)):
                     self.inv = 0
-                self.obs = self.n_obs.copy()
                 self.rec["obj_intr"]["drop off"][front_obj] += 1
+                _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.n_obs, self.rec, env_id)
+                self.obs = self.n_obs.copy()
             
         elif act == "pick up":
             self.n_obs, _, self.terminated, _, _ = self.env.step(Actions.pickup)
@@ -208,14 +198,14 @@ class agent:
                 self.pos_x, self.pos_y, self.direction = self.pos_m[str(env_id)]
                 # Initilize the environment
                 self.obs, _ = reset_env(self.env, self.args.seed)
-                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
+                self.p_obj, self.p_col, self.p_sta = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.n_obs, self.rec, env_id)
                 self.n_exp = "You completed a hidden goal and is sent back to start place, congratulations!"
                 self.log(self.n_exp)
             else:
-                _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
                 front_obj = get_front_obj(self.world_map, self.pos_x, self.pos_y, self.direction)
                 if not np.array_equal(self.n_obs['image'].transpose(1,0,2), self.obs['image'].transpose(1,0,2)):
                     self.inv = front_obj
+                _, _, _, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.n_obs, self.rec, env_id)
                 self.obs = self.n_obs.copy()
                 self.rec["obj_intr"]["pick up"][front_obj] += 1
 
@@ -467,6 +457,5 @@ class agent:
                     self.add_length(*self.get_length(), self.args.envs[env_id])
                     act_index += 1
             self.env_close(env_id)
-            self.save_table(env_id)
 
         self.save_wandb()
