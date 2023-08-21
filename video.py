@@ -78,7 +78,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--load",
-        default = r"output/seed_23/train/GPT/ENV 0 steps 40 gpt 0 temp 0.7 view 3/2023-08-20 13-55-25",
+        default = r"2023-08-20 13-55-25",
         type = str,
         help = "the location to load records, images"
     )
@@ -106,19 +106,21 @@ if __name__ == '__main__':
         direction = image_data['direction']
         filename = image_data['filename']
 
+        print(f"Loading image index = {image_id}")
+
         frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
         image = Image.open(os.path.join(args.load, filename))
         image = image.resize((int(args.image_size[0]), int(args.image_size[1])), Image.Resampling.LANCZOS)
-
+        font_size = 80
         # Add image to it
         frame.paste(image, (0,0))
         # Add text to it
         draw = ImageDraw.Draw(frame)
-        draw.text((2200, 200), f"Coordinate = ({x}, {y})", fill = "black", font = ImageFont.truetype('arial.ttf', 30))
-        draw.text((200, 1400), f"Environment ID = ({env_id})", fill = "black", font = ImageFont.truetype('arial.ttf', 30))
-        draw.text((200, 1600), f"Image ID = ({image_id})", fill = "black", font = ImageFont.truetype('arial.ttf', 30))
-        draw.text((800, 1400), f"Action = ({act})", fill = "black", font = ImageFont.truetype('arial.ttf', 30))
-        draw.text((800, 1600), f"Direction = ({direction})", fill = "black", font = ImageFont.truetype('arial.ttf', 30))
+        draw.text((2200, 200), f"Coordinate = ({x}, {y})", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
+        draw.text((200, 1400), f"Environment ID = {env_id}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
+        draw.text((200, 1600), f"Image ID = {image_id}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
+        draw.text((1000, 1400), f"Action = {act}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
+        draw.text((1000, 1600), f"Direction = {direction}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
         
         # Finishing decorating the rame
         frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
