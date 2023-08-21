@@ -17,24 +17,32 @@ def get_path(args, env_id):
     else:
         mode_dir = "train"
     # Test if the agent is controlled by input (human) or from LLMs
-    if args.input:
-        output_dir = "INPUT"
-    else:
-        output_dir = "GPT"
-    if args.cross:
+    if args.eval:
         if args.all:
             env_dir = "ALL ENV"
         else:
             env_dir = "ENV " + "_".join(args.envs)
-        steps_s = "_".join(args.steps)
-        env_dir = "cross " + env_dir + f" steps {steps_s}" + f" gpt {args.gpt[0]} temp {args.temp[0]} view {args.view[0]}"
+        timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
+        full_path = os.path.join(root_dir, seed_dir, mode_dir, env_dir, str(timestamp))
     else:
-        env_dir = "ENV " + str(env_id) + f" steps {args.steps[env_id]} gpt {args.gpt[env_id]} temp {args.temp[env_id]} view {args.view[env_id]}"
-    # For same settings, there may be multiple experiment so it's important to distinguish time
-    timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
-    # These are the parmaters may change in the experiment, they are for us to distinguish them
-    # Combine them to create the full path
-    full_path = os.path.join(root_dir, seed_dir, mode_dir, output_dir, env_dir, str(timestamp))
+        if args.input:
+            output_dir = "INPUT"
+        else:
+            output_dir = "GPT"
+        if args.cross:
+            if args.all:
+                env_dir = "ALL ENV"
+            else:
+                env_dir = "ENV " + "_".join(args.envs)
+            steps_s = "_".join(args.steps)
+            env_dir = "cross " + env_dir + f" steps {steps_s}" + f" gpt {args.gpt[0]} temp {args.temp[0]} view {args.view[0]}"
+        else:
+            env_dir = "ENV " + str(env_id) + f" steps {args.steps[env_id]} gpt {args.gpt[env_id]} temp {args.temp[env_id]} view {args.view[env_id]}"
+        # For same settings, there may be multiple experiment so it's important to distinguish time
+        timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
+        # These are the parmaters may change in the experiment, they are for us to distinguish them
+        # Combine them to create the full path
+        full_path = os.path.join(root_dir, seed_dir, mode_dir, output_dir, env_dir, str(timestamp))
     
     if not os.path.exists(full_path):
         os.makedirs(full_path)

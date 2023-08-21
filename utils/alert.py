@@ -37,7 +37,24 @@ def view_envs_same_length(args):
         args.view = [args.view[0] for i in range(len(args.envs))]
     return args
 
+
 def train_examine(args):
+    args = steps_envs_same_length(args)
+    args = gpt_envs_same_length(args)
+    args = exp_envs_same_length(args)
+    args = temp_envs_same_length(args)
+    args = view_envs_same_length(args)
+    return args
+
+def eval_examine(args):
+    args = steps_envs_same_length(args)
+    args = gpt_envs_same_length(args)
+    args = exp_envs_same_length(args)
+    args = temp_envs_same_length(args)
+    args = view_envs_same_length(args)
+    return args
+
+def retrain_examine(args):
     args = steps_envs_same_length(args)
     args = gpt_envs_same_length(args)
     args = exp_envs_same_length(args)

@@ -8,13 +8,13 @@ def initialize_exp(args):
         return get_eval_exp(args)
     else:
         if args.cross:
-            if args.exp_src is not None:
+            if args.retrain:
                 exp = open(args.exp_src[0]).read()
                 return exp
             else:
                 exp = ""
         else:
-            if args.exp_src is not None:
+            if args.retrain:
                 exp = [open(args.exp_src[i]).read() for i in range(len(args.envs))]
             else:
                 exp = ["" for i in range(len(args.envs))]
@@ -27,4 +27,9 @@ def train_exp(args, env_id, exp):
         return exp[env_id]
 
 def get_eval_exp(args):
-    pass
+    if args.exp_src is not None:
+        exp = open(args.exp_src[0]).read()
+        return exp
+    else:
+        exp = ""
+    return exp

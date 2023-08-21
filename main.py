@@ -81,6 +81,11 @@ if __name__ == '__main__':
         default = "LLM As Agent"
     )
     parser.add_argument(
+        "--retrain-src",
+        type = "str",
+        help = "the retraining directory folder in string"
+    )
+    parser.add_argument(
         "--screen",
         type = int,
         default = 640,
@@ -127,7 +132,10 @@ try:
     if args.eval:
         llm_agent.eval()
     else:
-        llm_agent.train()
+        if args.retrain:
+            llm_agent.retrain()
+        else:
+            llm_agent.train()
     
 except Exception as e:
     print(f"An error occurred: {e}")
