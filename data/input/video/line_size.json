@@ -1,0 +1,7 @@
+{
+    "representation": 80,
+    "world_map": 80,
+    "description_by_agent": 80, 
+    "new_experience_obtained": 80,
+    "summarized_experience": 80
+}

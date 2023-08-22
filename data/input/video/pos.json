@@ -1,17 +1,18 @@
 {
     "screenshot":[1000, 100],
     "screenshot_caption": [1400, 0],
-    "representation": [0, 100],
+    "representation": [30, 50],
     "representation_caption": [20, 0],
     "world_map_caption": [2200, 0],
     "world_map": [2200, 100],
     "description_by_agent_caption": [20, 500],
-    "memory_record_caption": [2200, 1000],
-    "summarized_experience_caption": [20, 1600],
-    "new_experience_obtained_caption": [20, 1400],
-    "reason_of_choices": [1400, 800],
+    "memory_record_caption": [2200, 1100],
+    "summarized_experience_caption": [20, 1300],
+    "new_experience_obtained_caption": [20, 900],
+    "reason_of_choices_caption": [1000, 800],
     "position": [1000, 1700],
     "direction": [2000, 1700],
     "action": [2000, 1600],
-    "step_index": [1000, 1400]
+    "step_index": [1000, 1400],
+    "past_actions_caption": [2200, 600]
 }

@@ -42,6 +42,14 @@ def load_images_info(directory_path):
     
     return sorted(images_info, key=lambda x: x['image_id'])
 
+def put_key(key, text):
+    draw_text(draw, (pos[key][0], pos[key][1]), text, font_size[key])
+
+def put_key_wrap(key, text):
+    text_wrapped = wrap_text(text, line_size[key])
+    text = "\n".join(text_wrapped)
+    draw_text(draw, (pos[key][0], pos[key][1]), text, font_size[key])
+
 def wrap_text(text, width):
     words = text.split(' ')
     lines = []
@@ -98,6 +106,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     images_data = load_images_info(args.load)
     out = cv2.VideoWriter(os.path.join(args.load, args.video_name), cv2.VideoWriter_fourcc(*'mp4v'), args.fps, (int(args.video_size[0]), int(args.video_size[1])))
+    env_id = images_data[0]["env_id"]
+    rec_table, scn_table, world_map_table, length_table, metrics_table = load_tables(args.load, env_id)
     for image_data in images_data:
         env_id = image_data['env_id']
         image_id = image_data['image_id']
@@ -127,6 +137,9 @@ if __name__ == '__main__':
         put_key("step_index", f"Step index = {image_id}")
         # Action
         put_key("action", f"Action = {act}")
+        # World Map
+        obs_wrapped = wrap_text(scn_table.iloc[image_id]["obs"], 50)
+        put_key("representation", scn_table.iloc[image_id]["obs"])
         # Finishing decorating the rame
         frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
         image.close()

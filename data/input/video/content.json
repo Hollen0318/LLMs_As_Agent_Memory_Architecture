@@ -6,5 +6,6 @@
     "memory_record_caption": "Memory Record:",
     "summarized_experience_caption": "Summarized Experience:",
     "new_experience_obtained_caption": "New Experience Obtained:",
-    "reason_of_choices": "Reason of choices"
+    "reason_of_choices_caption": "Reason of choices:",
+    "past_actions_caption": "Past actions:"
 }
