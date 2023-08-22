@@ -70,3 +70,10 @@ def write_log(args, save_path, text):
 # desc_length = count_tokens(desc)
 # with open(os.path.join(save_path, f"env_{i}_idx_{str(j+1)}_desc_{str(desc_length)}.txt"), 'w') as file:
 #     file.write(desc)
+
+def retrain_path(args):
+    timestamp = datetime.now().strftime(r"%Y-%m-%d %H-%M-%S")
+    save_path = os.path.join(args.retrain_src, "Retrain", timestamp)
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    return save_path

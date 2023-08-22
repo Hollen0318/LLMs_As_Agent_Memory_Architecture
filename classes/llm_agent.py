@@ -1,6 +1,6 @@
 import wandb
 import numpy as np
-from utils.log import get_path, write_log
+from utils.log import get_path, write_log, retrain_path
 from utils.load_data import *
 from utils.exp import initialize_exp, train_exp
 from utils.fill import *
@@ -84,27 +84,6 @@ class agent:
         if self.args.wandb:
             self.rec_table.add_data(str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]["toggle"]).replace(".", ""), str(self.rec["obj_intr"]["pick up"]).replace(".", ""), str(self.rec["obj_intr"]["drop off"]).replace(".", ""))
         self.rec_table_df.loc[len(self.rec_table_df)] = [str(self.rec["env_view"]).replace(".", ""), str(self.rec["env_step"]).replace(".", ""), str(self.rec["env_memo"]).replace(".", ""), str(self.rec["obj_view"]).replace(".", ""), str(self.rec["obj_intr"]["toggle"]).replace(".", ""), str(self.rec["obj_intr"]["pick up"]).replace(".", ""), str(self.rec["obj_intr"]["drop off"]).replace(".", "")]
-
-    def copy_table(self):
-        if self.args.wandb:
-            # This table records the screen shot, the text (observation representation), then the description for that observation representation, reason, action being taken (if it is multiple then we print same act in different screenshots), then we have the new experience (if it is multiple then we print same n_exp), (we will have summarized experience same way too)
-            self.scn_table = wandb.Table(columns = ["img", "obs", "desc", "reason", "act", "n_exp", "s_exp"])
-            self.rec_table = wandb.Table(columns = ["env_view", "env_step", "env_memo", "obj_view", "toggle", "pick up", "drop off"])
-            self.world_map_table = wandb.Table(columns = ["world_map_obj", "world_map_col", "world_map_sta", "c_world_map"])
-            
-        # we save them to the csv
-        # Define table structure
-        scn_table_columns = ["img", "obs", "desc", "reason", "act", "n_exp", "s_exp"]
-        rec_table_columns = ["env_view", "env_step", "env_memo", "obj_view", "toggle", "pick up", "drop off"]
-        world_map_table_columns = ["world_map_obj", "world_map_col", "world_map_sta", "c_world_map"]
-        metrics_table_columns = ["env_view", "env_step", "env_memo", "obj_view", "toggle", "pick up", "drop off"]
-        length_table_columns = ["sum", "desc_sys", "desc_user_0", "desc_assis", "desc_user_1", "desc", "reason_user_0", "reason", "n_exp_user_0", "n_exp", "s_exp_user_0", "s_sxp"]
-        
-        self.scn_table_df = pd.DataFrame(columns=scn_table_columns)
-        self.rec_table_df = pd.DataFrame(columns=rec_table_columns)
-        self.world_map_table_df = pd.DataFrame(columns=world_map_table_columns)
-        self.metrics_table_df = pd.DataFrame(columns=metrics_table_columns)
-        self.length_table_df = pd.DataFrame(columns=length_table_columns)
 
     def create_table(self):
         if self.args.wandb:
@@ -377,18 +356,29 @@ class agent:
         return train_msg['desc_sys'], train_msg["desc_user_0"], train_msg['desc_assis'], self.desc_user_1, self.desc, self.reason_user_0, self.reason, self.n_exp_user_0, self.n_exp, self.s_exp_user_0
 
     def retrain(self):
+        if self.args.wandb:
+            wandb.init(
+                project = self.args.prj_name,
+                name = datetime.now().strftime(r"Retrain %Y-%m-%d %H:%M:%S"),
+                config = vars(self.args)
+            )
+        self.save_path = retrain_path(self.args)
         act_obj = {"left": Actions.left, "right": Actions.right, "forward": Actions.forward, "toggle": Actions.toggle, "drop off": Actions.drop, "pick up": Actions.pickup}
-        self.env = start_env(self.args, self.args.envs[0])
-        env_id, self.world_map, self.rec, self.exp, self.pos_x, self.pos_y, self.direction, act_list = load_retrain(self.args.retrain_src)
-        for act in act_list:
-            self.env.step(act_obj[act])
+        env_id = 0
+        self.env = start_env(self.args, self.args.envs[env_id])
+        self.obs, _ = reset_env(self.env, self.args.seed)
+        self.world_map, self.rec, self.exp, self.pos_x, self.pos_y, self.direction, act_list, self.past_actions, self.inv = load_retrain(self.args.retrain_src)
+        for act in range(len(act_list)):
+            self.obs, _, _, _, _ = self.env.step(act_obj[act_list[act]])
         self.terminated = False
         self.p_obj, self.p_col, self.p_sta, self.world_map = update_world_map(self.args, self.world_map, self.pos_x, self.pos_y, self.direction, self.obs, self.rec, env_id)
+        act_index = len(act_list)
         self.create_table()
         self.add_rec()
-        act_index = 0
-        for step in range(self.args.steps[env_id]):
-            self.get_desc(env_id)
+        self.log(f"################## Starting Experiment ##################\n")
+        self.log(f"Configurations are:\n{self.args}\n")
+        for step in range(len(act_list), len(act_list) + self.args.steps[env_id]):
+            self.get_desc(self.args.envs[env_id])
             self.get_reason(env_id)
             self.get_action(env_id)
             if isinstance(self.action, list):
@@ -439,6 +429,7 @@ class agent:
                 self.add_length(*self.get_length(), self.args.envs[env_id])
                 act_index += 1
         self.env_close(env_id)
+        self.save_wandb()
 
     def save_table(self, env_id):
          # Log datas to the wandb
@@ -507,7 +498,7 @@ class agent:
             self.add_rec()
             act_index = 0
             for step in range(self.args.steps[env_id]):
-                self.get_desc(env_id)
+                self.get_desc(self.args.envs[env_id])
                 self.get_reason(env_id)
                 self.get_action(env_id)
                 if isinstance(self.action, list):
@@ -525,9 +516,6 @@ class agent:
                             step += 1
                             break
                         step += 1
-                        # TODO write the exp, desc into some files, count the length of experience, desc, reason, etc. 
-                        # TODO wandb table
-                        # The action is integer, not string at the moment
                         act_index += 1
                     if not self.terminated:
                         self.get_n_exp(env_id)

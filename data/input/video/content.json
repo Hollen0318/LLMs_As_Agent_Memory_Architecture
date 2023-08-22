@@ -1,0 +1,10 @@
+{
+    "screenshot_caption": "Screenshot:",
+    "representation_caption": "Representation:",
+    "world_map_caption": "World Map:",
+    "description_by_agent_caption": "Description by agent:",
+    "memory_record_caption": "Memory Record:",
+    "summarized_experience_caption": "Summarized Experience:",
+    "new_experience_obtained_caption": "New Experience Obtained:",
+    "reason_of_choices": "Reason of choices"
+}

@@ -81,9 +81,15 @@ if __name__ == '__main__':
         default = "LLM As Agent"
     )
     parser.add_argument(
+        "--retrain",
+        action = "store_true",
+        help = "retrain from the directory given in the retrain-src for number of steps defined in --steps"
+    )
+    parser.add_argument(
         "--retrain-src",
-        type = "str",
-        help = "the retraining directory folder in string"
+        type = str,
+        help = "the retraining directory folder in string",
+        default = r"output/seed_23/train/GPT/ENV 0 steps 200 gpt 0 temp 0.7 view 7/2023-08-20 23-23-41"
     )
     parser.add_argument(
         "--screen",
@@ -124,11 +130,12 @@ if __name__ == '__main__':
         help = "whether to use wandb to record experiments"
     )
 
+args = parser.parse_args()
+llm_agent = agent(args)
+
 try:
-    args = parser.parse_args()
     load_api_key(args.API_KEY)
     # Create the agent
-    llm_agent = agent(args)
     if args.eval:
         llm_agent.eval()
     else:

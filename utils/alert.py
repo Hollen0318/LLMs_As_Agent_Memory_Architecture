@@ -1,5 +1,5 @@
 import warnings
-
+import sys
 def steps_envs_same_length(args):
     if len(args.steps) != len(args.envs):
         warnings.warn(f"The parameter steps length {len(args.steps)} is not the same as the envs {len(args.envs)}, will use the first steps parameter {args.steps[0]} for all environments!", UserWarning)
@@ -37,6 +37,20 @@ def view_envs_same_length(args):
         args.view = [args.view[0] for i in range(len(args.envs))]
     return args
 
+def single_env(args):
+    if len(args.envs) > 1 or len(args.temp) > 1 or len(args.gpt) > 1 or len(args.steps) > 1:
+        args.view = [args.view[0] for i in range(len(args.envs))]
+        args.temp = [args.temp[0] for i in range(len(args.envs))]
+        args.gpt = [args.gpt[0] for i in range(len(args.envs))]
+        args.steps = [args.steps[0] for i in range(len(args.envs))]
+        warnings.warn(f"retrain currently only supports one set of parameter only", UserWarning)
+    return args
+
+def retrain_src(args):
+    if args.retrain_src is None:
+        warnings.warn(f"the retrain_src must be set if --retrain is True", UserWarning)
+        sys.exit()
+    return args
 
 def train_examine(args):
     args = steps_envs_same_length(args)
@@ -55,9 +69,6 @@ def eval_examine(args):
     return args
 
 def retrain_examine(args):
-    args = steps_envs_same_length(args)
-    args = gpt_envs_same_length(args)
-    args = exp_envs_same_length(args)
-    args = temp_envs_same_length(args)
-    args = view_envs_same_length(args)
+    args = single_env(args)
+    args = retrain_src(args)
     return args

@@ -15,7 +15,7 @@ def initialize_exp(args):
                 exp = ""
         else:
             if args.retrain:
-                exp = [open(args.exp_src[i]).read() for i in range(len(args.envs))]
+                exp = ""
             else:
                 exp = ["" for i in range(len(args.envs))]
     return exp

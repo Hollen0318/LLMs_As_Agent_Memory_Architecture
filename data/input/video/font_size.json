@@ -1,0 +1,12 @@
+{
+    "screenshot_caption": 50,
+    "representation_caption": 30,
+    "world_map_caption": 50,
+    "world_map": 30,
+    "description_by_agent_caption": 50,
+    "memory_record_caption": 50,
+    "summarized_experience_caption": 50,
+    "new_experience_obtained_caption": 50,
+    "reason_of_choices": 50,
+    "position": 30
+}

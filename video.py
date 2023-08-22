@@ -4,6 +4,13 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import argparse
 import re
+from utils.load_video import *
+
+def draw_text(draw, pos, content, size, width = None):
+    draw.text(pos, content, fill = "black", font = ImageFont.truetype('arial.ttf', size))
+
+def put_key(key, text):
+    draw_text(draw, (pos[key][0], pos[key][1]), text, font_size[key])
 
 def load_images_info(directory_path):
     images_info = []
@@ -52,12 +59,6 @@ def wrap_text(text, width):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config",
-        type = str,
-        help = "the configuration to show in the video",
-        default = "desc_50_goal_False_gpt_3_lim_50_\nmemo_5_reason_50_refresh_6_seed_23_\nstatic_False_steps_20_temp_0.8_view_7"
-    )
     parser.add_argument(
         "--envs",
         nargs = "+",
@@ -110,18 +111,22 @@ if __name__ == '__main__':
 
         frame = Image.new('RGB', (int(args.video_size[0]), int(args.video_size[1])), 'white')
         image = Image.open(os.path.join(args.load, filename))
-        image = image.resize((int(args.image_size[0]), int(args.image_size[1])), Image.Resampling.LANCZOS)
-        font_size = 80
-        # Add image to it
-        frame.paste(image, (0,0))
-        # Add text to it
+        image = image.resize((img_size["screenshot"][0], img_size["screenshot"][1]), Image.Resampling.LANCZOS)
         draw = ImageDraw.Draw(frame)
-        draw.text((2200, 200), f"Coordinate = ({x}, {y})", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
-        draw.text((200, 1400), f"Environment ID = {env_id}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
-        draw.text((200, 1600), f"Image ID = {image_id}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
-        draw.text((1000, 1400), f"Action = {act}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
-        draw.text((1000, 1600), f"Direction = {direction}", fill = "black", font = ImageFont.truetype('arial.ttf', font_size))
-        
+        # Add text to the screenshot
+        for caption in ["screenshot_caption", "representation_caption", "world_map_caption", "description_by_agent_caption", "reason_of_choices_caption", "past_actions_caption", "new_experience_obtained_caption", "summarized_experience_caption", "memory_record_caption"]:
+            draw_text(draw, (pos[caption][0], pos[caption][1]), content[caption], font_size[caption])
+        # Add image to it
+        frame.paste(image, (pos["screenshot"][0], pos["screenshot"][1]))
+        # Add static statistics to it
+        # Position
+        put_key("position", f"Position = ({x}, {y})")
+        # Direction
+        put_key("direction", f"Direction = {direction}")
+        # Step index
+        put_key("step_index", f"Step index = {image_id}")
+        # Action
+        put_key("action", f"Action = {act}")
         # Finishing decorating the rame
         frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
         image.close()
