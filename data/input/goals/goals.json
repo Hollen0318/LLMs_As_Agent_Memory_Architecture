@@ -5,6 +5,15 @@
             "name": "MiniGrid-BlockedUnlockPickup-v0",
             "levels": [
                 {
+                    "level": "elementary",
+                    "goals": ["go forward",
+                              "turn right",
+                              "turn left",
+                              "toggle object",
+                              "pick up object",
+                              "drop off object"]
+                },
+                {
                     "level": "very easy",
                     "goals": ["Step forward and turn right", 
                               "Turn left and step forward",

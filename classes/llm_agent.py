@@ -120,6 +120,7 @@ class agent:
                 self.log(f"Using none experience")
             else:
                 self.log(f"Using loaded experience =\n{self.init_exp}")
+                
             
 
     def execute_action(self, act, env_id):

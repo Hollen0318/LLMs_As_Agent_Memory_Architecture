@@ -1,6 +1,5 @@
 import json
 import pandas as pd
-from classes.Minigrid.minigrid.core.actions import Actions
 import os
 import numpy as np
 import re
