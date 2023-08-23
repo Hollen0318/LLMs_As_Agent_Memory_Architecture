@@ -1,11 +1,16 @@
 {
     "screenshot_caption": "Screenshot:",
     "representation_caption": "Representation:",
-    "world_map_caption": "World Map:",
+    "world_map_caption": "World Map (Composed):",
     "description_by_agent_caption": "Description by agent:",
     "memory_record_caption": "Memory Record:",
     "summarized_experience_caption": "Summarized Experience:",
     "new_experience_obtained_caption": "New Experience Obtained:",
     "reason_of_choices_caption": "Reason of choices:",
-    "past_actions_caption": "Past actions:"
+    "past_actions_caption": "Past actions:",
+    "environment_view_caption": "Environment View:",
+    "environment_step_caption": "Environment Step:",
+    "configuration_caption": "Status:",
+    "world_map_obj_caption": "World Map (Object):",
+    "metrics_caption": "Metrics:"
 }

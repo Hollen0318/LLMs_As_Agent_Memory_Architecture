@@ -1,7 +1,9 @@
 {
-    "representation": 80,
-    "world_map": 80,
-    "description_by_agent": 80, 
-    "new_experience_obtained": 80,
-    "summarized_experience": 80
+    "representation": 60,
+    "world_map": 100,
+    "description_by_agent": 60, 
+    "new_experience_obtained": 60,
+    "summarized_experience": 60,
+    "reason_of_choices" : 70,
+    "past_actions": 60
 }
